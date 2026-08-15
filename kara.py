@@ -5,7 +5,7 @@ Hold the configured hotkey to record. Release to transcribe and paste.
 Default hotkey: Insert
 """
 
-__version__ = "0.2.2"
+__version__ = "0.2.3"
 
 import sys
 import os
@@ -100,14 +100,14 @@ _add_nvidia_dlls()
 
 # ── Model cache layout ────────────────────────────────────────────────────────
 # Some huggingface_hub versions fill snapshots/ with symlinks pointing into
-# blobs/. ctranslate2 could not open model.bin through those on at least one
-# machine -- it failed with "Unable to open file 'model.bin'" while the bytes
-# sat there in blobs/, intact (issue #1). Real files cost the same disk space
-# here, because nothing else on the machine shares this cache.
+# blobs/. Plain files instead: nothing else on the machine shares this cache, so
+# they cost the same disk space, and they take one thing out of the picture when
+# a model will not load. Not the cause of issue #1 -- that was a lock -- but a
+# symlinked cache is one more way for that failure to look like a different one.
 #
 # Set before faster_whisper is imported: huggingface_hub reads it at import.
-# Versions that predate the variable ignore it, which is why the check below
-# does not trust it on its own.
+# Versions that predate the variable ignore it, which is why the check further
+# down does not trust it on its own.
 os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS", "1")
 
 import numpy as np
@@ -600,32 +600,52 @@ def _hf_cache_dir():
         os.path.expanduser("~"), ".cache", "huggingface", "hub")
 
 
-def _snapshot_is_readable(path):
-    """True when every file ctranslate2 will open can really be read.
+# A file the loader cannot open is two different problems wearing the same
+# error, and they want opposite treatment. Missing or truncated bytes are worth
+# downloading again. A file some other program has open is not: the bytes are
+# fine, the lock clears on its own, and deleting half a gigabyte to work around
+# a virus scanner would be the worst possible reaction. Hence three verdicts
+# rather than a boolean.
+_LOCK_TRIES = 5
+_LOCK_WAIT  = 3.0        # seconds
 
-    os.path.exists is not enough. The download that started issue #1 left
-    symlinks in snapshots/ that pointed at blobs the loader could not follow:
-    the names were all there, and opening model.bin still failed. So open each
-    one and read a byte, which is the same thing ctranslate2 does.
-    """
+
+def _file_verdict(path):
+    """"ok", "locked" or "broken" for one file ctranslate2 is going to open."""
+    try:
+        with open(path, "rb") as f:
+            # A zero-byte file opens fine and is still useless.
+            return "ok" if f.read(1) else "broken"
+    except PermissionError:
+        return "locked"
+    except OSError as e:
+        # 32 ERROR_SHARING_VIOLATION, 33 ERROR_LOCK_VIOLATION. Windows raises
+        # these as plain OSError, not as PermissionError.
+        if getattr(e, "winerror", None) in (32, 33):
+            return "locked"
+        return "broken"
+
+
+def _snapshot_verdict(path):
+    """Worst verdict across the files ctranslate2 needs, with locked winning."""
     try:
         entries = os.listdir(path)
     except OSError:
-        return False
+        return "broken"
 
     # vocabulary is .txt on some models and .json on others, hence the prefix.
     vocabulary = [e for e in entries if e.startswith("vocabulary.")]
     if not vocabulary:
-        return False
+        return "broken"
 
+    verdict = "ok"
     for name in ["model.bin", "config.json", "tokenizer.json"] + vocabulary:
-        try:
-            with open(os.path.join(path, name), "rb") as f:
-                if not f.read(1):     # a zero-byte file opens fine and is useless
-                    return False
-        except OSError:
-            return False
-    return True
+        v = _file_verdict(os.path.join(path, name))
+        if v == "locked":
+            return "locked"   # never delete a file something else is holding
+        if v == "broken":
+            verdict = "broken"
+    return verdict
 
 
 def ensure_model_files(model_size):
@@ -640,22 +660,52 @@ def ensure_model_files(model_size):
         return model_size
 
     path = download_model(model_size)
-    if _snapshot_is_readable(path):
-        return path
 
-    # snapshots/<revision>/ up to models--<org>--<name>/. Deleting only the
-    # snapshot would re-link the same unreadable blobs, so the whole repo
-    # folder goes and the download starts over.
+    # Wait a lock out before saying anything about it. An antivirus scanning a
+    # model that was downloaded seconds ago holds it for seconds, not minutes,
+    # and the whole failure looks like a broken install if we give up first.
+    verdict = "locked"
+    for attempt in range(_LOCK_TRIES):
+        verdict = _snapshot_verdict(path)
+        if verdict != "locked":
+            break
+        if attempt == 0:
+            ui_queue.put(("log", "Something else has the model files open. "
+                                 "Waiting for it.", "dim"))
+        time.sleep(_LOCK_WAIT)
+
+    if verdict == "ok":
+        return path
+    if verdict == "locked":
+        raise RuntimeError(_locked_model_msg())
+
+    # Names present, bytes not. snapshots/<revision>/ up to models--<org>--<name>/:
+    # deleting only the snapshot can restore it from the same bad cache entry,
+    # so the whole repo folder goes and the download starts over.
     repo_dir = os.path.dirname(os.path.dirname(path))
     if os.path.basename(repo_dir).startswith("models--"):
-        ui_queue.put(("log", "The downloaded model files can't be read. "
+        ui_queue.put(("log", "The downloaded model files are incomplete. "
                              "Getting them again.", "dim"))
         shutil.rmtree(repo_dir, ignore_errors=True)
         path = download_model(model_size)
-        if _snapshot_is_readable(path):
+        if _snapshot_verdict(path) == "ok":
             return path
 
     raise RuntimeError(_unreadable_model_msg(repo_dir))
+
+
+def _cannot_open_msg():
+    return ("Kara could not open the model files. Another program may have them "
+            "open -- antivirus software does this for a while after a download. "
+            "Wait a minute and open Kara again, or restart the computer if it "
+            "keeps happening.")
+
+
+def _locked_model_msg():
+    return ("Another program has the model files open, so Kara can't read them. "
+            "Antivirus software does this for a while after a download. Wait a "
+            "minute and open Kara again, or restart the computer if it keeps "
+            "happening.")
 
 
 def _unreadable_model_msg(where):
@@ -693,9 +743,12 @@ def load_model(device, compute, model_size, on_done=None, on_error=None):
     except Exception as e:
         text = str(e)
         # ctranslate2 reports this one as a C++ file error naming a cache path
-        # nobody chose to have. Say what to do about it instead.
+        # nobody chose to have. The check above already read those files, so
+        # reaching here means something took them in between -- which is also
+        # what the report behind issue #1 turned out to be, since a reboot
+        # fixed it without touching the cache.
         if "Unable to open file" in text:
-            text = _unreadable_model_msg(_hf_cache_dir())
+            text = _cannot_open_msg()
         with model_lock:
             model_state = "error"
             model_error_msg = text

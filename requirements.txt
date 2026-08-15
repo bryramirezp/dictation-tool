@@ -1,9 +1,9 @@
 numpy>=2.0
 sounddevice>=0.5
 faster-whisper>=1.2
-# Pinned, even though faster-whisper pulls it in anyway: older releases fill the
-# model cache with symlinks that ctranslate2 could not open on at least one
-# machine, which is issue #1.
+# Pinned, even though faster-whisper pulls it in anyway: which version pip
+# resolved decided how the model cache was laid out, and that is not something
+# to leave to chance when a model failing to load is the symptom.
 huggingface_hub>=1.0
 pyperclip>=1.9
 pyautogui>=0.9.54
