@@ -75,13 +75,16 @@ the source code instead:
 git clone https://github.com/bryramirezp/dictation-tool.git
 cd dictation-tool
 py -3 -m pip install -r requirements.txt
-py -3 -m pip install nvidia-cublas-cu12 nvidia-cudnn-cu12
+py -3 -m pip install nvidia-cublas-cu12
 launch.bat
 ```
 
-You need **both** NVIDIA packages. Installing only one will not work. The CUDA
-Toolkit you may already have on your computer is not used, so do not worry about
-which version it is.
+That one extra package is all you need. The CUDA Toolkit you may already have on
+your computer is not used, so it does not matter which version it is.
+
+If the graphics card is not ready, the app quietly uses your processor instead.
+It only complains when you set Device to **gpu** yourself, and then it tells you
+what to install.
 
 ## Running from source
 

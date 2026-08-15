@@ -28,14 +28,61 @@ def ensure_single_instance():
 ensure_single_instance()
 
 # ── CUDA DLL fix (nvidia-cublas-cu12 wheel) ───────────────────────────────────
+_dll_dirs = []      # keeps the os.add_dll_directory handles alive
+
 def _add_nvidia_dlls():
+    """Make the DLLs from the NVIDIA wheels findable.
+
+    Since Python 3.8, extension modules only search the directories handed to
+    os.add_dll_directory(), so putting them on PATH alone is not enough. PATH is
+    still set because the child processes we spawn read it.
+
+    site.getsitepackages() is missing from a frozen build, hence the hasattr.
+    """
     import site
-    for sp in site.getsitepackages():
-        candidate = os.path.join(sp, "nvidia", "cublas", "bin")
-        if os.path.isdir(candidate):
-            if candidate not in os.environ.get("PATH", ""):
-                os.environ["PATH"] = candidate + os.pathsep + os.environ.get("PATH", "")
-            break
+    roots = []
+    for getter in ("getsitepackages", "getusersitepackages"):
+        if hasattr(site, getter):
+            got = getattr(site, getter)()
+            roots.extend(got if isinstance(got, list) else [got])
+
+    for root in roots:
+        for name in ("cublas", "cudnn", "cuda_runtime"):
+            d = os.path.join(root, "nvidia", name, "bin")
+            if not os.path.isdir(d):
+                continue
+            if d not in os.environ.get("PATH", ""):
+                os.environ["PATH"] = d + os.pathsep + os.environ.get("PATH", "")
+            try:
+                # Held onto on purpose: os.add_dll_directory undoes itself when
+                # the handle it returns is garbage collected.
+                _dll_dirs.append(os.add_dll_directory(d))
+            except (AttributeError, OSError):
+                pass
+
+def cuda_libs_present():
+    """True when the libraries ctranslate2 needs for CUDA can really load.
+
+    Counting CUDA devices is not enough: ctranslate2 answers that from the
+    driver, so it reports a card even with no maths libraries installed, and the
+    trouble only surfaces later as "Library cublas64_12.dll is not found" while
+    loading a model.
+
+    cuBLAS is the one to test. cuDNN is not: ctranslate2 ships its own copy, so
+    it always loads and would make this always say yes. Trying to load it by
+    name covers both the pip wheels and a system-wide CUDA install.
+    """
+    try:
+        import ctranslate2  # noqa: F401  -- registers its own DLL directory
+    except Exception:
+        return False
+    for name in ("cublas64_12.dll", "cublas64_11.dll"):
+        try:
+            ctypes.WinDLL(name)
+            return True
+        except OSError:
+            continue
+    return False
 
 _add_nvidia_dlls()
 
@@ -327,31 +374,48 @@ def current_mic_name():
         return "unknown"
 
 # ── Hardware auto-detection ───────────────────────────────────────────────────
+_hardware = None      # cached: the answer cannot change while we run
+
 def detect_hardware():
-    """Returns (device, compute_type, model_size)."""
+    """Returns (device, compute_type, model_size).
+
+    Worked out once. resolve_config() runs on every settings change and this
+    spawns nvidia-smi, which costs a few hundred milliseconds.
+    """
+    global _hardware
+    if _hardware is not None:
+        return _hardware
+
+    _hardware = ("cpu", "int8", "small")
     try:
         import ctranslate2
-        n = ctranslate2.get_cuda_device_count()
-        if n > 0:
+        if ctranslate2.get_cuda_device_count() > 0 and cuda_libs_present():
             vram = _get_vram_mb()
             if vram >= 6000:
-                return "cuda", "float16", "large-v3-turbo"
+                _hardware = ("cuda", "float16", "large-v3-turbo")
             elif vram >= 3000:
-                return "cuda", "float16", "small"
+                _hardware = ("cuda", "float16", "small")
             else:
-                return "cuda", "int8", "small"
+                _hardware = ("cuda", "int8", "small")
     except Exception:
         pass
-    return "cpu", "int8", "small"
+    return _hardware
 
 def _get_vram_mb():
+    """Free video memory, in MB.
+
+    Free rather than total: a card with 6 GB installed but 3 GB taken by the
+    browser cannot hold large-v3-turbo, and asking for total would promise it.
+    """
     try:
         r = subprocess.run(
-            ["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+            ["nvidia-smi", "--query-gpu=memory.free", "--format=csv,noheader,nounits"],
             capture_output=True, text=True, timeout=5,
             creationflags=subprocess.CREATE_NO_WINDOW
         )
-        return int(r.stdout.strip().split("\n")[0])
+        # splitlines(), not split("\n"): on Windows the first field of a
+        # multi-GPU answer keeps its \r and int() would refuse it.
+        return int(r.stdout.strip().splitlines()[0])
     except Exception:
         return 0
 
@@ -372,7 +436,16 @@ def resolve_config(settings):
         device  = "cpu"
         compute = "int8"
 
-    model = auto_model if model_pref == "auto" else model_pref
+    if model_pref != "auto":
+        model = model_pref
+    elif device == auto_device:
+        model = auto_model
+    else:
+        # The device was overridden, so the automatic pick no longer applies:
+        # it was chosen for the hardware we found, not for what was asked for.
+        # large-v3-turbo on a processor takes minutes per sentence.
+        model = "small"
+
     return device, compute, model
 
 # ── Tray icons ────────────────────────────────────────────────────────────────
@@ -446,6 +519,13 @@ _capture_queue      = queue.Queue()   # receives "kind:name" string from listene
 def load_model(device, compute, model_size, on_done=None, on_error=None):
     global model_obj
     try:
+        if device == "cuda" and not cuda_libs_present():
+            # Say what to do instead of letting ctranslate2 fail with a DLL name
+            # nobody outside this project would recognise.
+            raise RuntimeError(
+                "Your graphics card is missing some files. Open a terminal and "
+                "run:  pip install nvidia-cublas-cu12  ...or set Device back "
+                "to auto in settings.")
         with model_lock:
             model_obj = WhisperModel(model_size, device=device, compute_type=compute)
         if on_done:

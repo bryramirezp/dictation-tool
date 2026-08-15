@@ -9,8 +9,7 @@ pillow>=10.0
 pynput>=1.7
 psutil>=5.9
 
-# Optional - only needed for NVIDIA GPU acceleration.
-# Both are required: cuBLAS alone is not enough, and the CUDA Toolkit you may
-# already have installed system-wide is not used.
+# Optional - only needed to use an NVIDIA graphics card.
+# cuDNN is not listed because ctranslate2 already ships its own copy, and the
+# CUDA Toolkit you may have installed system-wide is not used either.
 # nvidia-cublas-cu12
-# nvidia-cudnn-cu12
