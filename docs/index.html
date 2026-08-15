@@ -8,6 +8,7 @@
 <link rel="canonical" href="https://bryramirezp.github.io/dictation-tool/">
 <meta name="description" content="Free, open source dictation for Windows. Hold a key, speak, and it types into any app. Runs fully offline with Whisper — no account, no cloud, no subscription. A free alternative to Dragon NaturallySpeaking and Otter.ai.">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+<meta name="theme-color" content="#0f0f0f">
 
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://bryramirezp.github.io/dictation-tool/">
@@ -40,16 +41,8 @@
     "Six languages: Spanish, English, Portuguese, French, German, Italian",
     "Optional NVIDIA graphics card acceleration"
   ],
-  "offers": {
-    "@type": "Offer",
-    "price": "0",
-    "priceCurrency": "USD"
-  },
-  "author": {
-    "@type": "Person",
-    "name": "Bryan Ramírez",
-    "url": "https://github.com/bryramirezp"
-  }
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "author": { "@type": "Person", "name": "Bryan Ramírez", "url": "https://github.com/bryramirezp" }
 }
 </script>
 
@@ -58,149 +51,141 @@
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [
-    {
-      "@type": "Question",
-      "name": "Does Dictation Tool work offline?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Yes. After the first run downloads the speech model, it never needs the internet again. Your voice is processed on your own computer and is never uploaded anywhere."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Is it free?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Yes, and it is open source under the MIT license. There is no account, no subscription and no paid tier."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Is it a free alternative to Dragon NaturallySpeaking?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "For plain dictation, yes. You hold a key, speak, and the text is typed into whatever app you are using. It does not have voice commands for controlling Windows, which is what Dragon is mainly bought for."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "How is it different from Windows Voice Typing (Win+H)?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Windows Voice Typing sends your audio to Microsoft servers and needs an internet connection. Dictation Tool runs the speech model on your own machine, works with no connection at all, and lets you choose a larger and more accurate model."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Which languages does it support?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Spanish, English, Portuguese, French, German and Italian. You pick one, which makes it faster and more accurate than guessing the language on every recording."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Do I need a graphics card?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "No. The download runs on your processor. If you have an NVIDIA graphics card and install from source, it can use it and get much faster."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Is my voice sent anywhere?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "No. Nothing leaves your computer. The microphone is only open while you hold the key, and it is closed the rest of the time."
-      }
-    }
+    { "@type": "Question", "name": "Does Dictation Tool work offline?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. After the first run downloads the speech model, it never needs the internet again. Your voice is processed on your own computer and is never uploaded anywhere." } },
+    { "@type": "Question", "name": "Is it free?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes, and it is open source under the MIT license. There is no account, no subscription and no paid tier." } },
+    { "@type": "Question", "name": "Is it a free alternative to Dragon NaturallySpeaking?",
+      "acceptedAnswer": { "@type": "Answer", "text": "For plain dictation, yes. You hold a key, speak, and the text is typed into whatever app you are using. It does not have voice commands for controlling Windows, which is what Dragon is mainly bought for." } },
+    { "@type": "Question", "name": "How is it different from Windows Voice Typing (Win+H)?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Windows Voice Typing sends your audio to Microsoft servers and needs an internet connection. Dictation Tool runs the speech model on your own machine, works with no connection at all, and lets you choose a larger and more accurate model." } },
+    { "@type": "Question", "name": "Which languages does it support?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Spanish, English, Portuguese, French, German and Italian. You pick one, which makes it faster and more accurate than guessing the language on every recording." } },
+    { "@type": "Question", "name": "Do I need a graphics card?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. The download runs on your processor. If you have an NVIDIA graphics card and install from source, it can use it and get much faster." } },
+    { "@type": "Question", "name": "Is my voice sent anywhere?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. Nothing leaves your computer. The microphone is only open while you hold the key, and it is closed the rest of the time." } }
   ]
 }
 </script>
 
 <style>
+  /* Brand palette. The lime is a surface, never ink on a pale background:
+     11.77:1 on near-black, 1.63:1 on white. Filled with near-black text it is
+     11.77:1 in either theme, so the primary button is the same object in both. */
   :root {
-    --bg: #ffffff;
-    --panel: #f2f2f2;
-    --border: #d8d8d8;
-    --title: #1c1c1c;
-    --body: #494949;
-    --muted: #6f6f6f;
-    --accent: #1d6f2b;
-    --accent-bg: #e3f2e3;
-    --code-bg: #f0f0f0;
+    --lime:      #abdb25;
+    --lime-hi:   #bce62f;
+    --lime-ink:  #5c7615;   /* same hue at 5.18:1 on white, for text only */
+    --ink:       #0f0f0f;
+
+    --bg:      #ffffff;
+    --panel:   #f7f7f7;
+    --border:  #cccccc;
+    --title:   #333333;
+    --body:    #595959;
+    --muted:   #6e6e6e;
+    --code-bg: #f2f2f2;
+    --link:    var(--lime-ink);
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #0f0f0f;
-      --panel: #171717;
-      --border: #2b2b2b;
-      --title: #d4d4d4;
-      --body: #afafaf;
-      --muted: #898989;
-      --accent: #7fc78f;
-      --accent-bg: #1a2a1c;
+      --bg:      #0f0f0f;
+      --panel:   #171717;
+      --border:  #333333;
+      --title:   #ffffff;
+      --body:    #cccccc;
+      --muted:   #999999;
       --code-bg: #1a1a1a;
+      --link:    var(--lime);
     }
   }
   :root[data-theme="dark"] {
-    --bg: #0f0f0f;
-    --panel: #171717;
-    --border: #2b2b2b;
-    --title: #d4d4d4;
-    --body: #afafaf;
-    --muted: #898989;
-    --accent: #7fc78f;
-    --accent-bg: #1a2a1c;
-    --code-bg: #1a1a1a;
+    --bg: #0f0f0f; --panel: #171717; --border: #333333;
+    --title: #ffffff; --body: #cccccc; --muted: #999999;
+    --code-bg: #1a1a1a; --link: var(--lime);
   }
 
   * { box-sizing: border-box; }
   body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--body);
+    margin: 0; background: var(--bg); color: var(--body);
     font: 16px/1.65 "Segoe UI", system-ui, -apple-system, sans-serif;
   }
-  .wrap { max-width: 780px; margin: 0 auto; padding: 0 20px 80px; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 20px 80px; }
   h1, h2, h3 { color: var(--title); line-height: 1.25; }
-  h1 { font-size: 2.3rem; margin: 0 0 .4em; letter-spacing: -.02em; }
-  h2 { font-size: 1.4rem; margin: 2.6em 0 .6em; }
-  h3 { font-size: 1.05rem; margin: 1.8em 0 .3em; }
-  a { color: var(--accent); }
+  h1 { font-size: 2.5rem; margin: 0 0 .3em; letter-spacing: -.025em; }
+  h2 {
+    font-size: 1.35rem; margin: 3em 0 .7em;
+    padding-bottom: .4em; border-bottom: 1px solid var(--border);
+  }
+  h3 { font-size: 1.02rem; margin: 1.7em 0 .25em; }
+  a { color: var(--link); }
+  p { margin: 0 0 1em; }
 
-  header { text-align: center; padding: 64px 0 8px; }
-  header img.mark { width: 96px; height: 96px; }
-  .tagline { font-size: 1.18rem; color: var(--body); margin: 0 auto 1.6em; max-width: 34em; }
+  /* ── Hero: name, promise, one button. Nothing else competes here. */
+  header { text-align: center; padding: 70px 0 0; }
+  header img.mark { width: 88px; height: 88px; }
+  .tagline { font-size: 1.2rem; color: var(--body); margin: 0 auto 1.8em; max-width: 30em; }
 
   .cta {
-    display: inline-block; padding: 14px 30px; border-radius: 8px;
-    background: var(--accent-bg); color: var(--title);
-    border: 1px solid var(--border);
-    font-weight: 600; text-decoration: none;
+    display: inline-block; padding: 15px 38px; border-radius: 8px;
+    background: var(--lime); color: var(--ink);
+    font-size: 1.05rem; font-weight: 700; text-decoration: none;
+    border: 1px solid transparent;
   }
-  .cta:hover { border-color: var(--accent); }
-  .cta-note { color: var(--muted); font-size: .87rem; margin-top: .9em; }
+  .cta:hover { background: var(--lime-hi); }
+  .cta-note { color: var(--muted); font-size: .87rem; margin: 1em 0 0; }
+  .cta-note a { color: var(--muted); }
 
-  .winget {
-    margin: 46px auto 0; max-width: 620px; text-align: left;
+  .shots { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin: 54px 0 0; }
+  .shots img { width: 262px; max-width: 100%; border: 1px solid var(--border); border-radius: 10px; }
+
+  /* ── The three beats of using it. */
+  .beats { display: flex; gap: 18px; flex-wrap: wrap; margin: 0; padding: 0; list-style: none; }
+  .beats li {
+    flex: 1 1 190px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px;
+  }
+  .beats b { display: block; color: var(--title); margin-bottom: .25em; }
+  .beats .n { color: var(--lime-ink); font-weight: 700; font-size: .8rem; letter-spacing: .08em; }
+  :root[data-theme="dark"] .beats .n { color: var(--lime); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .beats .n { color: var(--lime); }
+  }
+
+  .table-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  th { color: var(--title); font-weight: 600; }
+  td:first-child { color: var(--title); }
+  tbody tr:first-child td:nth-child(2),
+  tbody tr td:nth-child(2) { color: var(--title); font-weight: 600; }
+
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; overflow-x: auto;
+    font: .88rem/1.5 Consolas, ui-monospace, monospace; color: var(--title);
+  }
+  code { font-family: Consolas, ui-monospace, monospace; font-size: .92em; }
+
+  .card {
     background: var(--panel); border: 1px solid var(--border);
-    border-radius: 12px; padding: 22px 24px 20px;
+    border-radius: 12px; padding: 4px 24px 22px; margin-top: 1.4em;
   }
-  .winget img { width: 100%; border: 1px solid var(--border); border-radius: 8px; display: block; }
-  .pending {
-    margin: 1em 0 0; font-size: .85rem; color: var(--muted);
-    padding-left: 12px; border-left: 3px solid var(--border);
+  .card img { width: 100%; border: 1px solid var(--border); border-radius: 8px; display: block; }
+  .note {
+    margin: 1.2em 0 0; font-size: .87rem; color: var(--muted);
+    padding-left: 14px; border-left: 3px solid var(--lime);
   }
 
-  .steps { counter-reset: step; list-style: none; padding: 0; }
-  .steps > li { counter-increment: step; position: relative; padding-left: 42px; margin-bottom: 26px; }
+  .steps { counter-reset: step; list-style: none; padding: 0; margin: 1.2em 0 0; }
+  .steps > li { counter-increment: step; position: relative; padding-left: 42px; margin-bottom: 24px; }
   .steps > li::before {
     content: counter(step);
-    position: absolute; left: 0; top: -1px;
-    width: 27px; height: 27px; border-radius: 50%;
-    background: var(--accent-bg); border: 1px solid var(--border);
-    color: var(--title); font-size: .85rem; font-weight: 600;
+    position: absolute; left: 0; top: -2px;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--lime); color: var(--ink);
+    font-size: .85rem; font-weight: 700;
     display: flex; align-items: center; justify-content: center;
   }
   .steps strong { color: var(--title); }
@@ -211,29 +196,8 @@
     color: var(--title); white-space: nowrap;
   }
 
-  .shots { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; margin: 44px 0 0; }
-  .shots img { width: 260px; max-width: 100%; border: 1px solid var(--border); border-radius: 10px; }
-
-  .table-scroll { overflow-x: auto; }
-  table { border-collapse: collapse; width: 100%; font-size: .93rem; }
-  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
-  th { color: var(--title); font-weight: 600; }
-  td:first-child { color: var(--title); }
-
-  pre {
-    background: var(--code-bg); border: 1px solid var(--border);
-    border-radius: 8px; padding: 14px 16px; overflow-x: auto;
-    font: .87rem/1.5 Consolas, ui-monospace, monospace; color: var(--body);
-  }
-  code { font-family: Consolas, ui-monospace, monospace; font-size: .92em; }
-
-  .faq { border-top: 1px solid var(--border); }
-  .faq h3 { margin-top: 1.6em; }
-  .faq p { margin-top: .2em; }
-
   footer {
-    margin-top: 70px; padding-top: 24px;
-    border-top: 1px solid var(--border);
+    margin-top: 70px; padding-top: 24px; border-top: 1px solid var(--border);
     color: var(--muted); font-size: .88rem; text-align: center;
   }
 </style>
@@ -245,59 +209,39 @@
   <img class="mark" src="logo.png" alt="Dictation Tool logo">
   <h1>Dictation Tool</h1>
   <p class="tagline">
-    Free offline speech to text for Windows. Hold a key, speak, and it types
-    into whatever app you are using. No account, no cloud, no subscription.
+    Hold a key, speak, and it types for you — into any app on your computer.
+    Works with no internet. Free.
   </p>
   <a class="cta" href="https://github.com/bryramirezp/dictation-tool/releases/latest/download/DictationTool-Setup.exe">Download for Windows</a>
   <p class="cta-note">
-    Starts downloading straight away · 68 MB · Windows 10 and 11 · no Python needed<br>
-    Free and open source ·
-    <a href="https://github.com/bryramirezp/dictation-tool/releases/latest">all files and release notes</a>
+    68 MB · Windows 10 and 11 · nothing else to install<br>
+    <a href="https://github.com/bryramirezp/dictation-tool/releases/latest">All files and release notes</a>
+    · <a href="#winget">install with winget instead</a>
   </p>
-
-  <div class="winget">
-    <h2 style="margin:0 0 .3em;font-size:1.05rem">Prefer the command line?</h2>
-    <p style="margin:0 0 1em;color:var(--muted);font-size:.93rem">
-      Install it with <strong>winget</strong>, the package manager built into
-      Windows. Instructions are further down.
-    </p>
-    <img src="winget-command.png" alt="A PowerShell window with the command winget install bryramirezp.DictationTool typed into it">
-    <p class="pending">
-      Waiting on Microsoft to accept the package
-      (<a href="https://github.com/microsoft/winget-pkgs/pull/417700">pull request</a>).
-      Until then, use the download button above.
-    </p>
-  </div>
 </header>
 
 <div class="shots">
-  <img src="screenshot-main-dark.png" alt="The Dictation Tool window showing transcribed text">
-  <img src="screenshot-settings-light.png" alt="The settings panel with language, device and model options">
+  <img src="screenshot-main-dark.png" alt="The Dictation Tool window showing text that was just dictated">
+  <img src="screenshot-settings-light.png" alt="The settings panel with appearance, hotkey and microphone options">
 </div>
 
-<h2>What it does</h2>
-<p>
-  You hold down a key. You talk. You let go. A second later your words appear
-  wherever your cursor is — a browser, Word, a chat window, a code editor,
-  anything you can type into.
-</p>
-<p>
+<h2>How it works</h2>
+<ol class="beats">
+  <li><span class="n">HOLD</span><b>Press the key</b>Hold <kbd>Insert</kbd>. The microphone opens only now.</li>
+  <li><span class="n">SPEAK</span><b>Say it out loud</b>Talk normally. No commands to memorise.</li>
+  <li><span class="n">RELEASE</span><b>Let go</b>Your words are typed where the cursor is.</li>
+</ol>
+<p style="margin-top:1.4em">
   The speech recognition runs on your own computer using
-  <a href="https://github.com/SYSTRAN/faster-whisper">Whisper</a>. Your voice
-  is never uploaded. You can pull out the network cable and it still works.
+  <a href="https://github.com/SYSTRAN/faster-whisper">Whisper</a>. Your voice is
+  never uploaded. You can pull out the network cable and it still works.
 </p>
 
 <h2>How it compares</h2>
 <div class="table-scroll">
 <table>
   <thead>
-    <tr>
-      <th></th>
-      <th>Dictation Tool</th>
-      <th>Windows Voice Typing</th>
-      <th>Dragon</th>
-      <th>Otter.ai</th>
-    </tr>
+    <tr><th></th><th>Dictation Tool</th><th>Windows Voice Typing</th><th>Dragon</th><th>Otter.ai</th></tr>
   </thead>
   <tbody>
     <tr><td>Price</td><td>Free</td><td>Free</td><td>Paid</td><td>Free tier, then paid</td></tr>
@@ -315,49 +259,11 @@
   without a connection.
 </p>
 
-<h2>Install with winget</h2>
-<p>
-  winget is the package manager that comes with Windows 10 and 11. If you use
-  it, the app is one line, and <code>winget upgrade</code> keeps it up to date
-  later without you visiting this page again.
-</p>
-
-<ol class="steps">
-  <li>
-    <strong>Open a terminal.</strong>
-    Press <kbd>Win</kbd> + <kbd>X</kbd> and choose <strong>Terminal</strong>.
-    Or press <kbd>Win</kbd> + <kbd>R</kbd>, type <code>powershell</code>, and
-    press <kbd>Enter</kbd>. You do not need to run it as administrator: the app
-    installs only for you.
-  </li>
-  <li>
-    <strong>Type the command and press <kbd>Enter</kbd>.</strong>
-    <pre>winget install bryramirezp.DictationTool</pre>
-    <img src="winget-command.png" alt="A PowerShell window with the command typed in, ready to run"
-         style="width:100%;max-width:620px;border:1px solid var(--border);border-radius:8px;margin-top:12px">
-  </li>
-  <li>
-    <strong>Wait for it to finish.</strong>
-    winget downloads the installer, checks it against a known fingerprint, and
-    runs it silently. It takes a minute or two on a normal connection. When the
-    prompt comes back, the app is in your Start menu.
-  </li>
-</ol>
-
-<p class="pending">
-  Not live yet. The package is waiting for Microsoft to review and merge it into
-  the winget catalogue
-  (<a href="https://github.com/microsoft/winget-pkgs/pull/417700">pull request 417700</a>),
-  which usually takes a few days. Until it lands, the command above will say
-  "No package found matching input criteria", and the download button at the top
-  of this page is the way in.
-</p>
-
-<h2>Install by downloading it</h2>
+<h2>Getting it</h2>
 <p>
   <a href="https://github.com/bryramirezp/dictation-tool/releases/latest/download/DictationTool-Setup.exe">Download the installer</a>
-  and run it. It installs for your user only, so Windows never asks for an
-  administrator password.
+  and run it. It installs for you only, so Windows never asks for an
+  administrator password, and it offers to start with Windows if you want that.
 </p>
 <p>
   The installer is not signed, so Windows may show a blue box saying "Windows
@@ -365,68 +271,102 @@
   anyway</strong>. Signing a program costs money every year, which is a lot for
   a free tool.
 </p>
-<p>Prefer to run the source?</p>
+<p>
+  The first time you open it, it downloads the speech model — about 460 MB, once.
+  After that it never needs the internet again.
+</p>
+
+<h3 id="winget">Or install with winget</h3>
+<div class="card">
+  <ol class="steps">
+    <li>
+      <strong>Open a terminal.</strong>
+      Press <kbd>Win</kbd> + <kbd>X</kbd> and choose <strong>Terminal</strong>.
+      No administrator rights needed.
+    </li>
+    <li>
+      <strong>Type this and press <kbd>Enter</kbd>.</strong>
+      <pre>winget install bryramirezp.DictationTool</pre>
+      <img src="winget-command.png" alt="A PowerShell window with the command typed in, ready to run">
+    </li>
+    <li>
+      <strong>Wait for the prompt to come back.</strong>
+      winget downloads the installer, checks it against a known fingerprint and
+      runs it. The app lands in your Start menu.
+    </li>
+  </ol>
+  <p class="note">
+    Not live yet. The package is waiting for Microsoft to merge it into the
+    winget catalogue
+    (<a href="https://github.com/microsoft/winget-pkgs/pull/417700">pull request 417700</a>),
+    which usually takes a few days. Until then the command says "No package
+    found matching input criteria" — use the download button above.
+  </p>
+</div>
+
+<h3>Using a graphics card</h3>
+<p>
+  The download runs on your processor. If you have an NVIDIA card and want it
+  much faster, run it from the source code instead:
+</p>
 <pre>git clone https://github.com/bryramirezp/dictation-tool.git
 cd dictation-tool
-py -3 -m pip install -r requirements.txt
+py -3 -m pip install -r requirements.txt nvidia-cublas-cu12
 launch.bat</pre>
 
-<h2 class="faq" style="border:0">Questions</h2>
-<div class="faq">
+<h2>Questions</h2>
 
-  <h3>Does it work offline?</h3>
-  <p>
-    Yes. The first run downloads the speech model, about 460 MB. After that it
-    never needs the internet again, and your voice is processed entirely on your
-    own machine.
-  </p>
+<h3>Does it work offline?</h3>
+<p>
+  Yes. The first run downloads the speech model, about 460 MB. After that it
+  never needs the internet again, and your voice is processed entirely on your
+  own machine.
+</p>
 
-  <h3>Is it free?</h3>
-  <p>
-    Yes, and it is open source under the MIT license. No account, no
-    subscription, no paid tier, no trial that runs out.
-  </p>
+<h3>Is it free?</h3>
+<p>
+  Yes, and it is open source under the MIT license. No account, no subscription,
+  no paid tier, no trial that runs out.
+</p>
 
-  <h3>Is this a free alternative to Dragon NaturallySpeaking?</h3>
-  <p>
-    For dictation, yes. You hold a key, speak, and the text is typed for you. It
-    does not replace Dragon's voice commands for driving Windows by voice.
-  </p>
+<h3>Is this a free alternative to Dragon NaturallySpeaking?</h3>
+<p>
+  For dictation, yes. You hold a key, speak, and the text is typed for you. It
+  does not replace Dragon's voice commands for driving Windows by voice.
+</p>
 
-  <h3>How is it different from Windows Voice Typing (Win+H)?</h3>
-  <p>
-    Windows Voice Typing sends your audio to Microsoft and needs a connection.
-    This runs the model locally, works with no connection at all, and lets you
-    pick a larger and more accurate model than the built-in one.
-  </p>
+<h3>How is it different from Windows Voice Typing (Win+H)?</h3>
+<p>
+  Windows Voice Typing sends your audio to Microsoft and needs a connection.
+  This runs the model locally, works with no connection at all, and lets you
+  pick a larger and more accurate model than the built-in one.
+</p>
 
-  <h3>Which languages does it support?</h3>
-  <p>
-    Spanish, English, Portuguese, French, German and Italian. You choose one
-    rather than letting it guess, which makes it faster and stops it from
-    getting the language wrong on short recordings.
-  </p>
+<h3>Which languages does it support?</h3>
+<p>
+  Spanish, English, Portuguese, French, German and Italian. You choose one
+  rather than letting it guess, which makes it faster and stops it from getting
+  the language wrong on short recordings.
+</p>
 
-  <h3>Do I need a graphics card?</h3>
-  <p>
-    No. The download runs on your processor. If you have an NVIDIA card and
-    install from the source code, it can use it and get much faster.
-  </p>
+<h3>Do I need a graphics card?</h3>
+<p>
+  No. The download runs on your processor. If you have an NVIDIA card and
+  install from the source code, it can use it and get much faster.
+</p>
 
-  <h3>Is my voice sent anywhere?</h3>
-  <p>
-    No. Nothing leaves your computer. The microphone is only open while you hold
-    the key, so nothing is listening the rest of the time.
-  </p>
+<h3>Is my voice sent anywhere?</h3>
+<p>
+  No. Nothing leaves your computer. The microphone is only open while you hold
+  the key, so nothing is listening the rest of the time.
+</p>
 
-  <h3>Which key does it use?</h3>
-  <p>
-    <code>Insert</code> by default, and you can change it to any key or an extra
-    mouse button. Avoid normal letters: the key is not blocked, so choosing
-    <code>q</code> would start a recording every time you typed one.
-  </p>
-
-</div>
+<h3>Which key does it use?</h3>
+<p>
+  <kbd>Insert</kbd> by default, and you can change it to any key or an extra
+  mouse button. Avoid normal letters: the key is not blocked, so choosing
+  <code>q</code> would start a recording every time you typed one.
+</p>
 
 <footer>
   <a href="https://github.com/bryramirezp/dictation-tool">Source on GitHub</a> ·

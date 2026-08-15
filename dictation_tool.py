@@ -181,98 +181,118 @@ def save_settings(s):
     os.replace(tmp, SETTINGS_FILE)
 
 # ── Theme ─────────────────────────────────────────────────────────────────────
+# ── Brand palette ─────────────────────────────────────────────────────────────
+# Five colours carry the identity. Everything else is a surface underneath them.
+#
+#   #abdb25  lime     the mark, and only the mark
+#   #ffffff  white    loudest text
+#   #cccccc            body
+#   #999999            secondary
+#   #666666            quiet, and hairlines
+#
+# The lime is a surface, never ink on a pale background: it measures 11.77:1 on
+# near-black and 1.63:1 on white. Filled with near-black text on top it is
+# 11.77:1 either way, which is why the primary button looks the same in both
+# themes -- the one piece of the interface a person should recognise instantly.
+#
+# The ramp is native to dark: white through #666666 lands at 19.2, 11.9, 6.7 and
+# 3.3 against near-black, a clean four-step hierarchy. On white only #666666
+# survives as text (5.74:1), so the light theme extends the same neutral ramp
+# darker rather than inventing a second family.
+BRAND_LIME       = "#abdb25"
+BRAND_LIME_DARK  = "#5c7615"   # the same hue, taken down to 5.18:1 on white
+BRAND_INK        = "#0f0f0f"
+
 THEMES = {
     "dark": {
         "bg_root":             "#0f0f0f",
         "bg_header":           "#181818",
-        "bg_button":           "#1a1a1a",
-        "bg_button_hover":     "#252525",
-        "option_hover":        "#303030",
+        "bg_button":           "#1f1f1f",
+        "bg_button_hover":     "#2a2a2a",
+        "option_hover":        "#333333",
         "bg_log":              "#0a0a0a",
-        "border":              "#222222",
-        # Text colors below are solved for a target contrast ratio against the
-        # surface each one is drawn on, not picked by eye. See _solve_gray().
-        "text_title":          "#d4d4d4",   # on bg_header  11.98:1
-        "text_body":           "#afafaf",   # on bg_log      9.03:1
-        "text_caption":        "#898989",   # on bg_root     5.48:1
-        "text_hint":           "#727272",   # on bg_root     3.98:1
-        "text_faint":          "#636363",   # on bg_root     3.19:1
-        "icon_btn":            "#a3a3a3",   # on bg_header   7.04:1
-        "mic_btn":             "#909090",   # on bg_root     6.00:1
+        "border":              "#262626",
+        "text_title":          "#ffffff",   # on bg_header  17.93:1
+        "text_body":           "#cccccc",   # on bg_log     12.86:1
+        "text_caption":        "#999999",   # on bg_root     6.73:1
+        "text_hint":           "#666666",   # on bg_root     3.34:1
+        "text_faint":          "#666666",
+        "icon_btn":            "#cccccc",
+        "mic_btn":             "#999999",
         # Widget labels: customtkinter's dark-blue theme hardcodes #DCE4EE for
         # both appearance modes, so every button/menu must be told explicitly.
-        "text_on_button":      "#b0b0b0",   # on bg_button   8.03:1
-        "text_on_accent":      "#cfcfcf",   # on accent_bg   8.03:1
-        "text_on_capture":     "#c1c1c1",   # on capture_bg  8.01:1
+        "text_on_button":      "#cccccc",
+        "text_on_accent":      BRAND_INK,   # on the lime   11.77:1
+        "text_on_capture":     "#cccccc",
         "hover_close":         "#3a1010",
-        "hover_neutral":       "#222222",
-        "hover_settings":      "#1e2a1e",
-        "dot_idle":            "#3a3a3a",
-        "dot_rec":             "#f72929",   # on bg_header   4.48:1
-        "bar_track":           "#1a1a1a",
-        "bar_idle":            "#2a2a2a",
-        "bar_spin":            "#224422",
+        "hover_neutral":       "#262626",
+        "hover_settings":      "#1f2a0c",
+        "dot_idle":            "#666666",
+        "dot_rec":             "#f72929",   # red stays red: recording is a
+        "bar_track":           "#1f1f1f",   # state, not part of the brand
+        "bar_idle":            "#333333",
+        "bar_spin":            "#5c7615",
         "bar_rec":             "#771111",
-        "scrollbar":           "#222222",
-        "scrollbar_hover":     "#333333",
-        "accent_bg":           "#1e3a1e",
-        "accent_hover":        "#254a25",
-        "capture_bg":          "#1e2a3e",
-        "log_ok":              "#519651",   # on bg_log      5.50:1
-        "log_error":           "#f34949",   # on bg_log      5.52:1
-        "log_dim":             "#676767",   # on bg_log      3.50:1
-        "status_idle":         "#898989",   # on bg_root     5.48:1
-        "status_error":        "#de5353",   # on bg_root     4.99:1
-        "status_loading":      "#5e8d5e",   # on bg_root     4.97:1
-        "status_reload":       "#5e8d5e",
-        "status_reload_text":  "#688b68",   # on bg_root     5.00:1
-        "model_ready_text":    "#7b7b7b",   # on bg_root     4.53:1
-        "rec_status_text":     "#ef4141",   # on bg_root     5.02:1
-        "processing_text":     "#898989",   # on bg_root     5.48:1
+        "scrollbar":           "#333333",
+        "scrollbar_hover":     "#4d4d4d",
+        "accent_bg":           BRAND_LIME,
+        "accent_hover":        "#bce62f",
+        "capture_bg":          "#26300f",
+        "log_ok":              BRAND_LIME,  # the transcription itself, in the
+        "log_error":           "#f34949",   # brand colour: it is the payoff
+        "log_dim":             "#666666",
+        "status_idle":         "#999999",
+        "status_error":        "#de5353",
+        "status_loading":      BRAND_LIME,
+        "status_reload":       BRAND_LIME,
+        "status_reload_text":  BRAND_LIME,
+        "model_ready_text":    "#666666",
+        "rec_status_text":     "#ef4141",
+        "processing_text":     "#999999",
     },
     "light": {
-        "bg_root":             "#f2f2f2",
-        "bg_header":           "#e4e4e4",
-        "bg_button":           "#e0e0e0",
-        "bg_button_hover":     "#d0d0d0",
-        "option_hover":        "#c7c7c7",
+        "bg_root":             "#ffffff",
+        "bg_header":           "#f2f2f2",
+        "bg_button":           "#f2f2f2",
+        "bg_button_hover":     "#e6e6e6",
+        "option_hover":        "#dcdcdc",
         "bg_log":              "#ffffff",
-        "border":              "#d5d5d5",
-        "text_title":          "#252525",   # on bg_header  12.06:1
-        "text_body":           "#494949",   # on bg_log      9.00:1
-        "text_caption":        "#616161",   # on bg_root     5.53:1
-        "text_hint":           "#777777",   # on bg_root     4.00:1
-        "text_faint":          "#878787",   # on bg_root     3.21:1
-        "icon_btn":            "#4a4a4a",   # on bg_header   6.97:1
-        "mic_btn":             "#5c5c5c",   # on bg_root     5.97:1
-        "text_on_button":      "#3f3f3f",   # on bg_button   7.98:1
-        "text_on_accent":      "#404040",   # on accent_bg   8.02:1
-        "text_on_capture":     "#3e3e3e",   # on capture_bg  7.96:1
+        "border":              "#cccccc",
+        "text_title":          "#333333",   # on bg_header  11.62:1
+        "text_body":           "#595959",   # on bg_log      7.00:1
+        "text_caption":        "#6e6e6e",   # on bg_root     5.10:1
+        "text_hint":           "#8a8a8a",   # on bg_root     3.54:1
+        "text_faint":          "#999999",   # on bg_root     2.85:1, decorative
+        "icon_btn":            "#595959",
+        "mic_btn":             "#6e6e6e",
+        "text_on_button":      "#444444",
+        "text_on_accent":      BRAND_INK,   # on the lime   11.77:1
+        "text_on_capture":     "#333333",
         "hover_close":         "#f2c9c9",
-        "hover_neutral":       "#d6d6d6",
-        "hover_settings":      "#cdead0",
-        "dot_idle":            "#bdbdbd",
-        "dot_rec":             "#c82121",   # on bg_header   4.47:1
-        "bar_track":           "#e2e2e2",
-        "bar_idle":            "#cfcfcf",
-        "bar_spin":            "#bfe0bf",
+        "hover_neutral":       "#e6e6e6",
+        "hover_settings":      "#eaf5d0",
+        "dot_idle":            "#cccccc",
+        "dot_rec":             "#c82121",
+        "bar_track":           "#eaeaea",
+        "bar_idle":            "#cccccc",
+        "bar_spin":            "#cde88a",
         "bar_rec":             "#e2a0a0",
-        "scrollbar":           "#d0d0d0",
-        "scrollbar_hover":     "#bdbdbd",
-        "accent_bg":           "#cdeacd",
-        "accent_hover":        "#b7dfb7",
-        "capture_bg":          "#cfe0f5",
-        "log_ok":              "#227928",   # on bg_log      5.48:1
-        "log_error":           "#c72c20",   # on bg_log      5.51:1
-        "log_dim":             "#898989",   # on bg_log      3.50:1
-        "status_idle":         "#616161",   # on bg_root     5.53:1
-        "status_error":        "#c52c1f",   # on bg_root     5.00:1
-        "status_loading":      "#227727",   # on bg_root     5.02:1
-        "status_reload":       "#227727",
-        "status_reload_text":  "#227727",   # on bg_root     5.02:1
-        "model_ready_text":    "#6f6f6f",   # on bg_root     4.49:1
-        "rec_status_text":     "#c52c1f",   # on bg_root     5.00:1
-        "processing_text":     "#616161",   # on bg_root     5.53:1
+        "scrollbar":           "#cccccc",
+        "scrollbar_hover":     "#999999",
+        "accent_bg":           BRAND_LIME,
+        "accent_hover":        "#9ac91f",
+        "capture_bg":          "#eef7d6",
+        "log_ok":              BRAND_LIME_DARK,
+        "log_error":           "#c72c20",
+        "log_dim":             "#8a8a8a",
+        "status_idle":         "#6e6e6e",
+        "status_error":        "#c52c1f",
+        "status_loading":      BRAND_LIME_DARK,
+        "status_reload":       BRAND_LIME_DARK,
+        "status_reload_text":  BRAND_LIME_DARK,
+        "model_ready_text":    "#8a8a8a",
+        "rec_status_text":     "#c52c1f",
+        "processing_text":     "#6e6e6e",
     },
 }
 
@@ -487,9 +507,12 @@ def _make_tray_icon(rec=False, size=64, detail=None):
     def px(*fractions):
         return [round(f * end) for f in fractions]
 
-    bg     = (50, 14, 14)  if rec else (28, 28, 28)
-    mc     = (220, 40, 40) if rec else (175, 175, 175)
-    sc     = (190, 55, 55) if rec else (130, 130, 130)
+    # Lime capsule when idle, red when recording. In a tray full of grey icons
+    # the colour is what makes it findable, and the switch to red is then
+    # unmistakable rather than a subtle change of shade.
+    bg     = (50, 14, 14)   if rec else (23, 23, 23)
+    mc     = (220, 40, 40)  if rec else (171, 219, 37)     # #abdb25
+    sc     = (190, 55, 55)  if rec else (110, 110, 110)
     stroke = max(1, round(0.047 * s))
 
     draw.ellipse(px(0, 0, 1, 1), fill=bg)
@@ -665,7 +688,7 @@ def _transcribe(audio_data, sr):
             text = " ".join(seg.text.strip() for seg in segments).strip()
 
         if text:
-            ui_queue.put(("log", text, "ok"))
+            ui_queue.put(("log", text, "said"))
             ui_queue.put(("status", _hold_hint(), theme_color("status_idle")))
             prev = pyperclip.paste()
             pyperclip.copy(text)
@@ -909,7 +932,12 @@ class DictationToolApp(ctk.CTk):
                                    border_width=1, corner_radius=6,
                                    wrap="word", state="disabled")
         self._log.pack(padx=16, pady=(0, 10))
-        for name, color in (("ok", t["log_ok"]), ("error", t["log_error"]), ("dim", t["log_dim"])):
+        # "said" is what you dictated, and it is the one thing here meant to be
+        # read as prose, so it gets plain body text. The brand colour is saved
+        # for the short confirmations, where it reads as a mark rather than
+        # painting every line on screen.
+        for name, color in (("ok", t["log_ok"]), ("error", t["log_error"]),
+                            ("dim", t["log_dim"]), ("said", t["text_body"])):
             try:
                 self._log.tag_config(name, foreground=color)
             except Exception:

@@ -48,9 +48,9 @@ def _svg():
     """Hand-written master, same fractions as the Pillow drawing."""
     return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <title>Dictation Tool</title>
-  <circle cx="32" cy="32" r="32" fill="#1c1c1c"/>
-  <rect x="22" y="7" width="20" height="29" rx="10" fill="#afafaf"/>
-  <g fill="none" stroke="#828282" stroke-width="3" stroke-linecap="round">
+  <circle cx="32" cy="32" r="32" fill="#171717"/>
+  <rect x="22" y="7" width="20" height="29" rx="10" fill="#abdb25"/>
+  <g fill="none" stroke="#6e6e6e" stroke-width="3" stroke-linecap="round">
     <path d="M12 34.5a20 11.5 0 0 0 40 0"/>
     <path d="M32 46v10"/>
     <path d="M24 56h16"/>
@@ -100,9 +100,9 @@ def main():
     card.paste(mark, (510, 90), mark)
     d = ImageDraw.Draw(card)
     for text, y, size, fill in (
-        ("Dictation Tool",                     400, 64, (212, 212, 212)),
-        ("Hold a key, speak, and it types.",   490, 30, (137, 137, 137)),
-        ("Runs offline on Windows",            540, 26, (114, 114, 114)),
+        ("Dictation Tool",                     400, 64, (255, 255, 255)),
+        ("Hold a key, speak, and it types.",   490, 30, (204, 204, 204)),
+        ("Runs offline on Windows",            540, 26, (153, 153, 153)),
     ):
         d.text((640, y), text, font=_font(size), fill=fill, anchor="ma")
     save(card, os.path.join(DOCS, "social-preview.png"))
