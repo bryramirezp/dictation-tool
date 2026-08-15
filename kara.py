@@ -5,7 +5,7 @@ Hold the configured hotkey to record. Release to transcribe and paste.
 Default hotkey: Insert
 """
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 import sys
 import os
@@ -1112,6 +1112,26 @@ class KaraApp(ctk.CTk):
             # widths (~140px of the 266 asked for). fill="x" lets the parent's pack
             # impose the width instead, which does work.
             seg.pack(fill="x", pady=(0, 6))
+
+            # One text_color for every segment is all customtkinter offers, and it
+            # never touches it on selection: it swaps the background to the accent
+            # and leaves the label alone. That put #cccccc on the lime, which is
+            # 1.02:1 — the selected option was the one you could not read.
+            #
+            # So the labels get repainted by hand whenever the value changes.
+            # _buttons_dict is private, hence the guard: a customtkinter upgrade
+            # that renames it should cost the contrast fix, not the settings panel.
+            def repaint(*_):
+                try:
+                    chosen = variable.get()
+                    for value, btn in seg._buttons_dict.items():
+                        btn.configure(text_color=t["text_on_accent"] if value == chosen
+                                      else t["text_on_button"])
+                except Exception:
+                    pass
+
+            variable.trace_add("write", repaint)
+            repaint()
             return seg
 
         # ── Appearance
