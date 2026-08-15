@@ -1,0 +1,14 @@
+numpy
+sounddevice
+faster-whisper
+pyperclip
+pyautogui
+pystray
+customtkinter
+pillow
+pynput
+psutil
+
+# Optional — only needed for NVIDIA GPU acceleration:
+# nvidia-cublas-cu12
+# nvidia-cudnn-cu12

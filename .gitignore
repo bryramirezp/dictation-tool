@@ -1,0 +1,9 @@
+# Local state, not source
+settings.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
