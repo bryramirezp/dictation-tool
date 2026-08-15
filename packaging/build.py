@@ -3,11 +3,11 @@
     py -3 packaging/build.py
 
 Leaves in dist/:
-    DictationTool-Setup-<version>.exe     the installer
-    DictationTool-<version>-portable.zip  the same app, unzip and run
+    Kara-Setup-<version>.exe     the installer
+    Kara-<version>-portable.zip  the same app, unzip and run
     SHA256SUMS.txt                        hashes of both
 
-The version is read from __version__ in dictation_tool.py, which is the only
+The version is read from __version__ in kara.py, which is the only
 place it is written down.
 """
 import hashlib
@@ -20,7 +20,7 @@ import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DIST = os.path.join(ROOT, "dist")
-APP  = os.path.join(DIST, "DictationTool")
+APP  = os.path.join(DIST, "Kara")
 
 # winget installs Inno Setup per user by default, the GitHub runners get it
 # machine-wide through choco, and either way someone may just have it on PATH.
@@ -32,10 +32,10 @@ ISCC_CANDIDATES = [
 
 
 def version():
-    src = open(os.path.join(ROOT, "dictation_tool.py"), encoding="utf-8").read()
+    src = open(os.path.join(ROOT, "kara.py"), encoding="utf-8").read()
     m = re.search(r'^__version__\s*=\s*"([^"]+)"', src, re.M)
     if not m:
-        sys.exit("no __version__ found in dictation_tool.py")
+        sys.exit("no __version__ found in kara.py")
     return m.group(1)
 
 
@@ -47,8 +47,8 @@ def run(cmd):
 def build_exe():
     print("== PyInstaller ==")
     run([sys.executable, "-m", "PyInstaller", "--noconfirm",
-         os.path.join("packaging", "dictation_tool.spec")])
-    exe = os.path.join(APP, "DictationTool.exe")
+         os.path.join("packaging", "kara.spec")])
+    exe = os.path.join(APP, "Kara.exe")
     if not os.path.exists(exe):
         sys.exit(f"expected {exe}")
 
@@ -70,14 +70,14 @@ def stable_alias(setup):
     copy is what the download button on the website points at, so the button
     keeps working without editing the page on every release.
     """
-    alias = os.path.join(DIST, "DictationTool-Setup.exe")
+    alias = os.path.join(DIST, "Kara-Setup.exe")
     shutil.copy2(setup, alias)
     return alias
 
 
 def build_zip(ver):
     print("== portable zip ==")
-    out = os.path.join(DIST, f"DictationTool-{ver}-portable.zip")
+    out = os.path.join(DIST, f"Kara-{ver}-portable.zip")
     if os.path.exists(out):
         os.remove(out)
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
@@ -87,7 +87,7 @@ def build_zip(ver):
                 # Keep the folder in the archive: unzipping 400 loose files into
                 # whatever directory the user happened to be in is unkind.
                 z.write(full, os.path.join(
-                    "DictationTool", os.path.relpath(full, APP)))
+                    "Kara", os.path.relpath(full, APP)))
     return out
 
 
@@ -109,17 +109,17 @@ def write_hashes(ver, paths):
 
 def main():
     ver = version()
-    print(f"Dictation Tool {ver}\n")
+    print(f"Kara {ver}\n")
     build_exe()
     build_installer(ver)
     zip_path = build_zip(ver)
-    setup = os.path.join(DIST, f"DictationTool-Setup-{ver}.exe")
+    setup = os.path.join(DIST, f"Kara-Setup-{ver}.exe")
     if not os.path.exists(setup):
         sys.exit(f"expected {setup}")
     alias = stable_alias(setup)
     # The alias is byte for byte the versioned file, so one hash covers both.
     write_hashes(ver, [setup, zip_path])
-    print(f"  (DictationTool-Setup.exe is a copy of {os.path.basename(setup)})")
+    print(f"  (Kara-Setup.exe is a copy of {os.path.basename(setup)})")
     return alias
 
     print("\n== ready ==")

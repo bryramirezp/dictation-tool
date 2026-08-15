@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller build for Dictation Tool.
+"""PyInstaller build for Kara.
 
-    py -3 -m PyInstaller --noconfirm packaging/dictation_tool.spec
+    py -3 -m PyInstaller --noconfirm packaging/kara.spec
 
 Processor only, on purpose. The NVIDIA libraries weigh 925 MB against 190 MB for
 everything else put together, which is not a reasonable download for a dictation
@@ -40,7 +40,7 @@ for pkg in ("onnxruntime", "av"):
     hiddenimports += h
 
 a = Analysis(
-    [os.path.join(ROOT, "dictation_tool.py")],
+    [os.path.join(ROOT, "kara.py")],
     pathex=[ROOT],
     binaries=binaries,
     datas=datas,
@@ -61,7 +61,7 @@ exe = EXE(
     pyz,
     a.scripts,
     exclude_binaries=True,
-    name="DictationTool",
+    name="Kara",
     debug=False,
     strip=False,
     upx=False,          # UPX-packed binaries trip antivirus heuristics
@@ -75,5 +75,5 @@ coll = COLLECT(
     a.datas,
     strip=False,
     upx=False,
-    name="DictationTool",
+    name="Kara",
 )

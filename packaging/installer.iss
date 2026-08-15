@@ -1,4 +1,4 @@
-; Installer for Dictation Tool.
+; Installer for Kara.
 ;
 ;   "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\installer.iss
 ;
@@ -6,10 +6,10 @@
 ; administrator password. A dictation tool is not worth a UAC prompt, and asking
 ; for one is what makes people close the window and give up.
 
-#define AppName        "Dictation Tool"
+#define AppName        "Kara"
 #define AppPublisher   "bryramirezp"
-#define AppURL         "https://github.com/bryramirezp/dictation-tool"
-#define AppExeName     "DictationTool.exe"
+#define AppURL         "https://github.com/bryramirezp/kara"
+#define AppExeName     "Kara.exe"
 
 ; Passed in by packaging/build.py, which reads __version__ out of the source so
 ; the version is written down in exactly one place. The fallback only matters
@@ -27,7 +27,7 @@ AppPublisherURL={#AppURL}
 AppSupportURL={#AppURL}/issues
 AppUpdatesURL={#AppURL}/releases
 
-DefaultDirName={localappdata}\Programs\DictationTool
+DefaultDirName={localappdata}\Programs\Kara
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
@@ -35,7 +35,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
 OutputDir=..\dist
-OutputBaseFilename=DictationTool-Setup-{#AppVersion}
+OutputBaseFilename=Kara-Setup-{#AppVersion}
 SetupIconFile=..\assets\icon.ico
 UninstallDisplayIcon={app}\{#AppExeName}
 WizardStyle=modern
@@ -49,10 +49,10 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
-Name: "startup";     Description: "Start Dictation Tool when Windows starts"
+Name: "startup";     Description: "Start Kara when Windows starts"
 
 [Files]
-Source: "..\dist\DictationTool\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\dist\Kara\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#AppName}";            Filename: "{app}\{#AppExeName}"

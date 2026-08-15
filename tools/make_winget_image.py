@@ -73,7 +73,7 @@ def main():
     d.text((x, y), prompt, font=f, fill=PROMPT)
     x += d.textlength(prompt, font=f)
 
-    cmd = "winget install bryramirezp.DictationTool"
+    cmd = "winget install bryramirezp.Kara"
     d.text((x, y), cmd, font=f, fill=COMMAND)
     x += d.textlength(cmd, font=f)
 

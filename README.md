@@ -2,7 +2,7 @@
 
 <img src="docs/logo.png" alt="" width="128">
 
-# Dictation Tool
+# Kara
 
 **Free offline speech to text for Windows.**
 Hold a key, speak, and it types for you.
@@ -11,9 +11,9 @@ No account, no cloud, no subscription.
 
 <img src="docs/screenshot-main-dark.png" alt="The main window" width="300">
 
-[**Download for Windows**](https://github.com/bryramirezp/dictation-tool/releases/latest/download/DictationTool-Setup.exe)
- · [Website](https://bryramirezp.github.io/dictation-tool/)
- · [All files](https://github.com/bryramirezp/dictation-tool/releases/latest)
+[**Download for Windows**](https://github.com/bryramirezp/kara/releases/latest/download/Kara-Setup.exe)
+ · [Website](https://bryramirezp.github.io/kara/)
+ · [All files](https://github.com/bryramirezp/kara/releases/latest)
 
 </div>
 
@@ -31,7 +31,7 @@ NaturallySpeaking**, an **offline speech to text tool for Windows**, or somethin
 better than **Windows Voice Typing (Win+H)**, which needs an internet connection
 and sends your audio to Microsoft.
 
-| | Dictation Tool | Windows Voice Typing | Dragon | Otter.ai |
+| | Kara | Windows Voice Typing | Dragon | Otter.ai |
 |---|---|---|---|---|
 | Price | Free | Free | Paid | Free tier, then paid |
 | Works offline | Yes | No | Yes | No |
@@ -45,7 +45,7 @@ that. It dictates text, and that part is free and works with no connection.
 
 ## Download
 
-**[Download the installer](https://github.com/bryramirezp/dictation-tool/releases/latest/download/DictationTool-Setup.exe)**
+**[Download the installer](https://github.com/bryramirezp/kara/releases/latest/download/Kara-Setup.exe)**
 — 68 MB, for Windows 10 and 11. The link starts the download straight away.
 
 Run it and you are done. You do not need to install Python or anything else.
@@ -53,7 +53,7 @@ Run it and you are done. You do not need to install Python or anything else.
 ### Or with winget
 
 ```
-winget install bryramirezp.DictationTool
+winget install bryramirezp.Kara
 ```
 
 <img src="docs/winget-command.png" alt="A PowerShell window with the command typed in" width="620">
@@ -110,8 +110,8 @@ slow. If you have an NVIDIA graphics card and want the fast version, run it from
 the source code instead:
 
 ```bat
-git clone https://github.com/bryramirezp/dictation-tool.git
-cd dictation-tool
+git clone https://github.com/bryramirezp/kara.git
+cd kara
 py -3 -m pip install -r requirements.txt
 py -3 -m pip install nvidia-cublas-cu12
 launch.bat
@@ -135,15 +135,15 @@ launch.bat
 ```
 
 `launch.bat` starts the app with no window. To see errors while you work on it,
-run `py -3 dictation_tool.py` instead.
+run `py -3 kara.py` instead.
 
 If you keep your packages in one specific Python, tell the launcher which one:
 
 ```bat
-setx DICTATION_PYTHON "C:\Path\To\pythonw.exe"
+setx KARA_PYTHON "C:\Path\To\pythonw.exe"
 ```
 
-Your settings live in `%LOCALAPPDATA%\DictationTool\settings.json`.
+Your settings live in `%LOCALAPPDATA%\Kara\settings.json`.
 
 To rebuild the icons after changing the drawing in the app:
 

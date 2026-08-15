@@ -1,16 +1,17 @@
 """
-Dictation Tool — Voice to Text
+Kara — speak, and it types
 Push-to-talk dictation powered by faster-whisper.
 Hold the configured hotkey to record. Release to transcribe and paste.
 Default hotkey: Insert
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 import sys
 import os
 import json
 import math
+import shutil
 import subprocess
 import threading
 import time
@@ -23,17 +24,17 @@ from collections import deque
 # graphics card is simply not on offer there, and pretending otherwise strands
 # anyone who picks it.
 IS_PACKAGED = getattr(sys, "frozen", False)
-SOURCE_URL  = "https://github.com/bryramirezp/dictation-tool"
+SOURCE_URL  = "https://github.com/bryramirezp/kara"
 
 # ── Single instance guard ─────────────────────────────────────────────────────
 def ensure_single_instance():
     kernel32 = ctypes.windll.kernel32
-    kernel32.CreateMutexW(None, False, "DictationTool_SingleInstance")
+    kernel32.CreateMutexW(None, False, "Kara_SingleInstance")
     if kernel32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
         ctypes.windll.user32.MessageBoxW(
             None,
-            "Dictation Tool is already open.\nLook for the icon near the clock.",
-            "Dictation Tool", 0x40)
+            "Kara is already open.\nLook for the icon near the clock.",
+            "Kara", 0x40)
         sys.exit(0)
 
 ensure_single_instance()
@@ -112,9 +113,21 @@ from pynput.keyboard import Key, KeyCode, Listener as KeyboardListener
 pyautogui.FAILSAFE = False  # corner-of-screen abort would break paste mid-flow
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-APP_DIR       = os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "DictationTool")
+_LOCAL        = os.environ.get("LOCALAPPDATA", os.path.expanduser("~"))
+APP_DIR       = os.path.join(_LOCAL, "Kara")
 SETTINGS_FILE = os.path.join(APP_DIR, "settings.json")
 os.makedirs(APP_DIR, exist_ok=True)
+
+# The app was called Dictation Tool until 0.2.0 and kept its settings under that
+# name. Carry them across once, so a rename does not quietly hand everybody back
+# the default hotkey and language.
+if not os.path.exists(SETTINGS_FILE):
+    _old = os.path.join(_LOCAL, "DictationTool", "settings.json")
+    if os.path.exists(_old):
+        try:
+            shutil.copyfile(_old, SETTINGS_FILE)
+        except OSError:
+            pass
 
 # ── Settings ──────────────────────────────────────────────────────────────────
 DEFAULT_SETTINGS = {
@@ -481,20 +494,31 @@ def resolve_config(settings):
     return device, compute, model
 
 # ── Tray icons ────────────────────────────────────────────────────────────────
-def _make_tray_icon(rec=False, size=64, detail=None):
-    """The app mark: a microphone on a dark disc.
+MARK_STATES = {
+    "idle":      (171, 219, 37),    # the brand lime
+    "recording": (231, 76, 60),
+    "working":   (255, 196, 60),
+}
 
-    Every coordinate is a fraction of the side, so this one drawing serves both
-    the 16px tray icon and the 1024px logo (see tools/make_logo.py). Drawn at 4x
-    and scaled down because Pillow's shapes are aliased -- at 16px the edge of
-    the disc comes out visibly ragged otherwise.
+def _make_tray_icon(rec=False, size=64, state=None):
+    """Kara's mark: a status ring around a capsule, on a dark disc.
 
-    Below 40px the stand is dropped and the capsule grows to fill the space.
-    Kept at full detail, the arc and the stand are about one pixel each and
-    smear into the disc, which reads as a blur rather than as a microphone.
+    The ring is the whole idea. It is the one thing the two references share --
+    the LED at Kara's temple and the ring of light on a 360 -- and it is not
+    decoration here, because the app really does move through states. Colour is
+    the message: lime waiting, red recording, amber working.
+
+    Every coordinate is a fraction of the side, so this one drawing serves the
+    16px tray icon and the 1024px artwork alike (see tools/make_logo.py). Drawn
+    at 4x and scaled down: Pillow's shapes are aliased and the ring would come
+    out ragged otherwise.
+
+    Below 40px it inverts -- a solid disc of colour with the capsule knocked out
+    of it. At that size a ring is a one-pixel hair that eats its own middle, and
+    what survives is a blob. A filled shape survives, and in a tray full of grey
+    it is the colour that makes it findable at all.
     """
-    if detail is None:
-        detail = size >= 40
+    colour = MARK_STATES[state or ("recording" if rec else "idle")]
     ss  = 4
     s   = size * ss
     end = s - 1
@@ -504,26 +528,21 @@ def _make_tray_icon(rec=False, size=64, detail=None):
     def px(*fractions):
         return [round(f * end) for f in fractions]
 
-    # Lime capsule when idle, red when recording. In a tray full of grey icons
-    # the colour is what makes it findable, and the switch to red is then
-    # unmistakable rather than a subtle change of shade.
-    bg     = (50, 14, 14)   if rec else (23, 23, 23)
-    mc     = (220, 40, 40)  if rec else (171, 219, 37)     # #abdb25
-    sc     = (190, 55, 55)  if rec else (110, 110, 110)
-    stroke = max(1, round(0.047 * s))
+    DISC    = (23, 23, 23)
+    CAPSULE = (232, 232, 232)
 
-    draw.ellipse(px(0, 0, 1, 1), fill=bg)
-
-    if detail:
-        draw.rounded_rectangle(px(0.344, 0.109, 0.656, 0.563),
-                               radius=0.156 * end, fill=mc)
-        draw.arc(px(0.188, 0.359, 0.813, 0.719), start=0, end=180,
-                 fill=sc, width=stroke)
-        draw.line(px(0.5, 0.719, 0.5, 0.875),     fill=sc, width=stroke)
-        draw.line(px(0.375, 0.875, 0.625, 0.875), fill=sc, width=stroke)
+    if size >= 40:
+        draw.ellipse(px(0, 0, 1, 1), fill=DISC)
+        # Left open at the top, like an indicator part way round its travel.
+        # A closed ring reads as a frame; a broken one reads as a state.
+        draw.arc(px(0.10, 0.10, 0.90, 0.90), start=-64, end=244,
+                 fill=colour, width=max(1, round(0.085 * s)))
+        draw.rounded_rectangle(px(0.435, 0.33, 0.565, 0.67),
+                               radius=0.065 * end, fill=CAPSULE)
     else:
-        draw.rounded_rectangle(px(0.30, 0.16, 0.70, 0.84),
-                               radius=0.20 * end, fill=mc)
+        draw.ellipse(px(0, 0, 1, 1), fill=colour)
+        draw.rounded_rectangle(px(0.40, 0.26, 0.60, 0.74),
+                               radius=0.10 * end, fill=DISC)
 
     return img.resize((size, size), Image.LANCZOS)
 
@@ -645,7 +664,7 @@ def start_recording():
         return
     if tray_icon:
         tray_icon.icon  = TRAY_REC
-        tray_icon.title = "Dictation Tool — recording"
+        tray_icon.title = "Kara — recording"
     ui_queue.put(("recording", True))
 
 def stop_and_transcribe():
@@ -653,7 +672,7 @@ def stop_and_transcribe():
         _close_stream()
     if tray_icon:
         tray_icon.icon  = TRAY_IDLE
-        tray_icon.title = "Dictation Tool — ready"
+        tray_icon.title = "Kara — ready"
     ui_queue.put(("recording", False))
     if not audio_frames:
         ui_queue.put(("status", _idle_status(), theme_color("status_idle")))
@@ -795,12 +814,12 @@ def run_tray():
     global tray_icon
     try:
         menu = pystray.Menu(
-            pystray.MenuItem("Dictation Tool — speak to type", None, enabled=False),
+            pystray.MenuItem("Kara — speak to type", None, enabled=False),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Open", _show_window, default=True),
             pystray.MenuItem("Close the app", _quit_tray),
         )
-        tray_icon = pystray.Icon("DictationTool", TRAY_IDLE, "Dictation Tool", menu)
+        tray_icon = pystray.Icon("Kara", TRAY_IDLE, "Kara", menu)
         tray_icon.run()
     except Exception as e:
         ui_queue.put(("log", f"Could not add the icon near the clock: {e}", "error"))
@@ -818,7 +837,7 @@ MODEL_DESCRIPTIONS = {
     "large-v3-turbo":  "The most accurate. You need a graphics card for this one.",
 }
 
-class DictationToolApp(ctk.CTk):
+class KaraApp(ctk.CTk):
     W, H = 320, 480
 
     # Horizontal budget for the settings panel, derived rather than guessed:
@@ -846,7 +865,7 @@ class DictationToolApp(ctk.CTk):
         ctk.set_appearance_mode(self._settings.get("theme", "dark"))
         ctk.set_default_color_theme("dark-blue")
 
-        self.title("Dictation Tool")
+        self.title("Kara")
         self.geometry(self._bottom_right())
         self.resizable(False, False)
         self.attributes("-topmost", True)
@@ -897,7 +916,7 @@ class DictationToolApp(ctk.CTk):
                                  text_color=t["dot_idle"], width=26)
         self._dot.pack(side="left", padx=(12, 4))
 
-        ctk.CTkLabel(hdr, text="Dictation Tool", font=("Segoe UI Semibold", 15),
+        ctk.CTkLabel(hdr, text="Kara", font=("Segoe UI Semibold", 15),
                      text_color=t["text_title"]).pack(side="left")
 
         # header buttons right-to-left
@@ -1483,7 +1502,7 @@ def main():
 
     device, compute, model_size = resolve_config(settings)
 
-    app_gui = DictationToolApp()
+    app_gui = KaraApp()
     ui_queue.put(("log", "Getting ready...", "dim"))
     ui_queue.put(("log", "The first time you run this, it has to download some "
                          "files. That can take a few minutes.", "dim"))

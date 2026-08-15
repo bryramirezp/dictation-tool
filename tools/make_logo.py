@@ -5,7 +5,7 @@ never drift apart:
 
     py -3 tools/make_logo.py
 
-Importing dictation_tool would start the app, so this pulls the drawing function
+Importing kara would start the app, so this pulls the drawing function
 out of the source without executing the module-level setup.
 """
 import os
@@ -35,26 +35,23 @@ def _load_drawing():
     The module opens a mutex, shows a message box if one is already running and
     builds a Tk window at import time, so it cannot simply be imported here.
     """
-    src = open(os.path.join(ROOT, "dictation_tool.py"), encoding="utf-8").read()
-    start = src.index("def _make_tray_icon")
+    src = open(os.path.join(ROOT, "kara.py"), encoding="utf-8").read()
+    start = src.index("MARK_STATES = {")   # the palette the mark reads its colour from
     end   = src.index("TRAY_IDLE", start)
     mod = types.ModuleType("_logo_drawing")
     mod.__dict__.update(Image=Image, ImageDraw=ImageDraw)
-    exec(compile(src[start:end], "dictation_tool.py", "exec"), mod.__dict__)
+    exec(compile(src[start:end], "kara.py", "exec"), mod.__dict__)
     return mod._make_tray_icon
 
 
 def _svg():
     """Hand-written master, same fractions as the Pillow drawing."""
     return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <title>Dictation Tool</title>
+  <title>Kara</title>
   <circle cx="32" cy="32" r="32" fill="#171717"/>
-  <rect x="22" y="7" width="20" height="29" rx="10" fill="#abdb25"/>
-  <g fill="none" stroke="#6e6e6e" stroke-width="3" stroke-linecap="round">
-    <path d="M12 34.5a20 11.5 0 0 0 40 0"/>
-    <path d="M32 46v10"/>
-    <path d="M24 56h16"/>
-  </g>
+  <path d="M43.22 8.99A25.6 25.6 0 1 1 20.78 8.99" fill="none" stroke="#abdb25"
+        stroke-width="5.44" stroke-linecap="round"/>
+  <rect x="27.84" y="21.12" width="8.32" height="21.76" rx="4.16" fill="#e8e8e8"/>
 </svg>
 """
 
@@ -100,7 +97,7 @@ def main():
     card.paste(mark, (510, 90), mark)
     d = ImageDraw.Draw(card)
     for text, y, size, fill in (
-        ("Dictation Tool",                     400, 64, (255, 255, 255)),
+        ("Kara",                     400, 64, (255, 255, 255)),
         ("Hold a key, speak, and it types.",   490, 30, (204, 204, 204)),
         ("Runs offline on Windows",            540, 26, (153, 153, 153)),
     ):
