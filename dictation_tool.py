@@ -5,6 +5,8 @@ Hold the configured hotkey to record. Release to transcribe and paste.
 Default hotkey: Insert
 """
 
+__version__ = "0.1.0"
+
 import sys
 import os
 import json
