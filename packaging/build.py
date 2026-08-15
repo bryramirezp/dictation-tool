@@ -62,6 +62,19 @@ def build_installer(ver):
     run([iscc, f"/DAppVersion={ver}", os.path.join("packaging", "installer.iss")])
 
 
+def stable_alias(setup):
+    """A copy of the installer under a name that never changes.
+
+    GitHub only serves /releases/latest/download/<name> for an exact file name,
+    so a versioned one stops working the moment a new release goes out. This
+    copy is what the download button on the website points at, so the button
+    keeps working without editing the page on every release.
+    """
+    alias = os.path.join(DIST, "DictationTool-Setup.exe")
+    shutil.copy2(setup, alias)
+    return alias
+
+
 def build_zip(ver):
     print("== portable zip ==")
     out = os.path.join(DIST, f"DictationTool-{ver}-portable.zip")
@@ -103,7 +116,11 @@ def main():
     setup = os.path.join(DIST, f"DictationTool-Setup-{ver}.exe")
     if not os.path.exists(setup):
         sys.exit(f"expected {setup}")
+    alias = stable_alias(setup)
+    # The alias is byte for byte the versioned file, so one hash covers both.
     write_hashes(ver, [setup, zip_path])
+    print(f"  (DictationTool-Setup.exe is a copy of {os.path.basename(setup)})")
+    return alias
 
     print("\n== ready ==")
     for name in sorted(os.listdir(DIST)):

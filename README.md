@@ -11,8 +11,9 @@ No account, no cloud, no subscription.
 
 <img src="docs/screenshot-main-dark.png" alt="The main window" width="300">
 
-[**Download for Windows**](https://github.com/bryramirezp/dictation-tool/releases/latest)
+[**Download for Windows**](https://github.com/bryramirezp/dictation-tool/releases/latest/download/DictationTool-Setup.exe)
  · [Website](https://bryramirezp.github.io/dictation-tool/)
+ · [All files](https://github.com/bryramirezp/dictation-tool/releases/latest)
 
 </div>
 
@@ -44,10 +45,26 @@ that. It dictates text, and that part is free and works with no connection.
 
 ## Download
 
-**[Download the installer](https://github.com/bryramirezp/dictation-tool/releases/latest)**
-— for Windows 10 and 11.
+**[Download the installer](https://github.com/bryramirezp/dictation-tool/releases/latest/download/DictationTool-Setup.exe)**
+— 68 MB, for Windows 10 and 11. The link starts the download straight away.
 
 Run it and you are done. You do not need to install Python or anything else.
+
+### Or with winget
+
+```
+winget install bryramirezp.DictationTool
+```
+
+<img src="docs/winget-command.png" alt="A PowerShell window with the command typed in" width="620">
+
+Press `Win`+`X` and pick **Terminal**, type that line, press Enter. No
+administrator rights needed, and `winget upgrade` handles updates later.
+
+> Not live yet: the package is waiting for Microsoft to merge it
+> ([pull request 417700](https://github.com/microsoft/winget-pkgs/pull/417700)),
+> which usually takes a few days. Until then the command says "No package found
+> matching input criteria" and the download link above is the way in.
 
 > The installer is not signed, so Windows may show a blue box that says
 > "Windows protected your PC". Click **More info**, then **Run anyway**.

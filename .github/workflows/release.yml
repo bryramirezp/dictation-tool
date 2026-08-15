@@ -68,6 +68,7 @@ jobs:
           $tag = "${{ github.ref_name }}"
           $files = @(
             (Get-Item dist/DictationTool-Setup-*.exe).FullName
+            (Resolve-Path dist/DictationTool-Setup.exe).Path
             (Get-Item dist/DictationTool-*-portable.zip).FullName
             (Resolve-Path dist/SHA256SUMS.txt).Path
           )

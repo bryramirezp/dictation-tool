@@ -182,6 +182,35 @@
   .cta:hover { border-color: var(--accent); }
   .cta-note { color: var(--muted); font-size: .87rem; margin-top: .9em; }
 
+  .winget {
+    margin: 46px auto 0; max-width: 620px; text-align: left;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 22px 24px 20px;
+  }
+  .winget img { width: 100%; border: 1px solid var(--border); border-radius: 8px; display: block; }
+  .pending {
+    margin: 1em 0 0; font-size: .85rem; color: var(--muted);
+    padding-left: 12px; border-left: 3px solid var(--border);
+  }
+
+  .steps { counter-reset: step; list-style: none; padding: 0; }
+  .steps > li { counter-increment: step; position: relative; padding-left: 42px; margin-bottom: 26px; }
+  .steps > li::before {
+    content: counter(step);
+    position: absolute; left: 0; top: -1px;
+    width: 27px; height: 27px; border-radius: 50%;
+    background: var(--accent-bg); border: 1px solid var(--border);
+    color: var(--title); font-size: .85rem; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .steps strong { color: var(--title); }
+  kbd {
+    font: .82em Consolas, ui-monospace, monospace;
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-bottom-width: 2px; border-radius: 5px; padding: 2px 6px;
+    color: var(--title); white-space: nowrap;
+  }
+
   .shots { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; margin: 44px 0 0; }
   .shots img { width: 260px; max-width: 100%; border: 1px solid var(--border); border-radius: 10px; }
 
@@ -219,8 +248,26 @@
     Free offline speech to text for Windows. Hold a key, speak, and it types
     into whatever app you are using. No account, no cloud, no subscription.
   </p>
-  <a class="cta" href="https://github.com/bryramirezp/dictation-tool/releases/latest">Download for Windows</a>
-  <p class="cta-note">Free and open source · Windows 10 and 11 · no Python needed</p>
+  <a class="cta" href="https://github.com/bryramirezp/dictation-tool/releases/latest/download/DictationTool-Setup.exe">Download for Windows</a>
+  <p class="cta-note">
+    Starts downloading straight away · 68 MB · Windows 10 and 11 · no Python needed<br>
+    Free and open source ·
+    <a href="https://github.com/bryramirezp/dictation-tool/releases/latest">all files and release notes</a>
+  </p>
+
+  <div class="winget">
+    <h2 style="margin:0 0 .3em;font-size:1.05rem">Prefer the command line?</h2>
+    <p style="margin:0 0 1em;color:var(--muted);font-size:.93rem">
+      Install it with <strong>winget</strong>, the package manager built into
+      Windows. Instructions are further down.
+    </p>
+    <img src="winget-command.png" alt="A PowerShell window with the command winget install bryramirezp.DictationTool typed into it">
+    <p class="pending">
+      Waiting on Microsoft to accept the package
+      (<a href="https://github.com/microsoft/winget-pkgs/pull/417700">pull request</a>).
+      Until then, use the download button above.
+    </p>
+  </div>
 </header>
 
 <div class="shots">
@@ -268,9 +315,47 @@
   without a connection.
 </p>
 
-<h2>Install</h2>
+<h2>Install with winget</h2>
 <p>
-  <a href="https://github.com/bryramirezp/dictation-tool/releases/latest">Download the installer</a>
+  winget is the package manager that comes with Windows 10 and 11. If you use
+  it, the app is one line, and <code>winget upgrade</code> keeps it up to date
+  later without you visiting this page again.
+</p>
+
+<ol class="steps">
+  <li>
+    <strong>Open a terminal.</strong>
+    Press <kbd>Win</kbd> + <kbd>X</kbd> and choose <strong>Terminal</strong>.
+    Or press <kbd>Win</kbd> + <kbd>R</kbd>, type <code>powershell</code>, and
+    press <kbd>Enter</kbd>. You do not need to run it as administrator: the app
+    installs only for you.
+  </li>
+  <li>
+    <strong>Type the command and press <kbd>Enter</kbd>.</strong>
+    <pre>winget install bryramirezp.DictationTool</pre>
+    <img src="winget-command.png" alt="A PowerShell window with the command typed in, ready to run"
+         style="width:100%;max-width:620px;border:1px solid var(--border);border-radius:8px;margin-top:12px">
+  </li>
+  <li>
+    <strong>Wait for it to finish.</strong>
+    winget downloads the installer, checks it against a known fingerprint, and
+    runs it silently. It takes a minute or two on a normal connection. When the
+    prompt comes back, the app is in your Start menu.
+  </li>
+</ol>
+
+<p class="pending">
+  Not live yet. The package is waiting for Microsoft to review and merge it into
+  the winget catalogue
+  (<a href="https://github.com/microsoft/winget-pkgs/pull/417700">pull request 417700</a>),
+  which usually takes a few days. Until it lands, the command above will say
+  "No package found matching input criteria", and the download button at the top
+  of this page is the way in.
+</p>
+
+<h2>Install by downloading it</h2>
+<p>
+  <a href="https://github.com/bryramirezp/dictation-tool/releases/latest/download/DictationTool-Setup.exe">Download the installer</a>
   and run it. It installs for your user only, so Windows never asks for an
   administrator password.
 </p>
