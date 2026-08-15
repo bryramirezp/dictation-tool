@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dictation Tool — Free Offline Speech to Text for Windows</title>
+
+<link rel="canonical" href="https://bryramirezp.github.io/dictation-tool/">
+<meta name="description" content="Free, open source dictation for Windows. Hold a key, speak, and it types into any app. Runs fully offline with Whisper — no account, no cloud, no subscription. A free alternative to Dragon NaturallySpeaking and Otter.ai.">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://bryramirezp.github.io/dictation-tool/">
+<meta property="og:title" content="Dictation Tool — Free Offline Speech to Text for Windows">
+<meta property="og:description" content="Hold a key, speak, and it types. Runs fully offline on your own computer. Free and open source.">
+<meta property="og:image" content="https://bryramirezp.github.io/dictation-tool/social-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="logo.png">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Dictation Tool",
+  "applicationCategory": "UtilitiesApplication",
+  "applicationSubCategory": "Speech Recognition",
+  "operatingSystem": "Windows 10, Windows 11",
+  "softwareVersion": "0.1.0",
+  "url": "https://bryramirezp.github.io/dictation-tool/",
+  "downloadUrl": "https://github.com/bryramirezp/dictation-tool/releases/latest",
+  "codeRepository": "https://github.com/bryramirezp/dictation-tool",
+  "license": "https://opensource.org/licenses/MIT",
+  "isAccessibleForFree": true,
+  "description": "Push-to-talk dictation for Windows. Hold a key, speak, release, and the text is typed into whatever app has focus. Runs fully offline using Whisper.",
+  "featureList": [
+    "Works fully offline, with no internet connection",
+    "No account and no subscription",
+    "Types into any Windows application",
+    "Six languages: Spanish, English, Portuguese, French, German, Italian",
+    "Optional NVIDIA graphics card acceleration"
+  ],
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "author": {
+    "@type": "Person",
+    "name": "Bryan Ramírez",
+    "url": "https://github.com/bryramirezp"
+  }
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Does Dictation Tool work offline?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. After the first run downloads the speech model, it never needs the internet again. Your voice is processed on your own computer and is never uploaded anywhere."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is it free?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, and it is open source under the MIT license. There is no account, no subscription and no paid tier."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is it a free alternative to Dragon NaturallySpeaking?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "For plain dictation, yes. You hold a key, speak, and the text is typed into whatever app you are using. It does not have voice commands for controlling Windows, which is what Dragon is mainly bought for."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How is it different from Windows Voice Typing (Win+H)?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Windows Voice Typing sends your audio to Microsoft servers and needs an internet connection. Dictation Tool runs the speech model on your own machine, works with no connection at all, and lets you choose a larger and more accurate model."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Which languages does it support?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Spanish, English, Portuguese, French, German and Italian. You pick one, which makes it faster and more accurate than guessing the language on every recording."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I need a graphics card?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. The download runs on your processor. If you have an NVIDIA graphics card and install from source, it can use it and get much faster."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is my voice sent anywhere?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Nothing leaves your computer. The microphone is only open while you hold the key, and it is closed the rest of the time."
+      }
+    }
+  ]
+}
+</script>
+
+<style>
+  :root {
+    --bg: #ffffff;
+    --panel: #f2f2f2;
+    --border: #d8d8d8;
+    --title: #1c1c1c;
+    --body: #494949;
+    --muted: #6f6f6f;
+    --accent: #1d6f2b;
+    --accent-bg: #e3f2e3;
+    --code-bg: #f0f0f0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f0f0f;
+      --panel: #171717;
+      --border: #2b2b2b;
+      --title: #d4d4d4;
+      --body: #afafaf;
+      --muted: #898989;
+      --accent: #7fc78f;
+      --accent-bg: #1a2a1c;
+      --code-bg: #1a1a1a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f0f0f;
+    --panel: #171717;
+    --border: #2b2b2b;
+    --title: #d4d4d4;
+    --body: #afafaf;
+    --muted: #898989;
+    --accent: #7fc78f;
+    --accent-bg: #1a2a1c;
+    --code-bg: #1a1a1a;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--body);
+    font: 16px/1.65 "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 0 20px 80px; }
+  h1, h2, h3 { color: var(--title); line-height: 1.25; }
+  h1 { font-size: 2.3rem; margin: 0 0 .4em; letter-spacing: -.02em; }
+  h2 { font-size: 1.4rem; margin: 2.6em 0 .6em; }
+  h3 { font-size: 1.05rem; margin: 1.8em 0 .3em; }
+  a { color: var(--accent); }
+
+  header { text-align: center; padding: 64px 0 8px; }
+  header img.mark { width: 96px; height: 96px; }
+  .tagline { font-size: 1.18rem; color: var(--body); margin: 0 auto 1.6em; max-width: 34em; }
+
+  .cta {
+    display: inline-block; padding: 14px 30px; border-radius: 8px;
+    background: var(--accent-bg); color: var(--title);
+    border: 1px solid var(--border);
+    font-weight: 600; text-decoration: none;
+  }
+  .cta:hover { border-color: var(--accent); }
+  .cta-note { color: var(--muted); font-size: .87rem; margin-top: .9em; }
+
+  .shots { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; margin: 44px 0 0; }
+  .shots img { width: 260px; max-width: 100%; border: 1px solid var(--border); border-radius: 10px; }
+
+  .table-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  th { color: var(--title); font-weight: 600; }
+  td:first-child { color: var(--title); }
+
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; overflow-x: auto;
+    font: .87rem/1.5 Consolas, ui-monospace, monospace; color: var(--body);
+  }
+  code { font-family: Consolas, ui-monospace, monospace; font-size: .92em; }
+
+  .faq { border-top: 1px solid var(--border); }
+  .faq h3 { margin-top: 1.6em; }
+  .faq p { margin-top: .2em; }
+
+  footer {
+    margin-top: 70px; padding-top: 24px;
+    border-top: 1px solid var(--border);
+    color: var(--muted); font-size: .88rem; text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <img class="mark" src="logo.png" alt="Dictation Tool logo">
+  <h1>Dictation Tool</h1>
+  <p class="tagline">
+    Free offline speech to text for Windows. Hold a key, speak, and it types
+    into whatever app you are using. No account, no cloud, no subscription.
+  </p>
+  <a class="cta" href="https://github.com/bryramirezp/dictation-tool/releases/latest">Download for Windows</a>
+  <p class="cta-note">Free and open source · Windows 10 and 11 · no Python needed</p>
+</header>
+
+<div class="shots">
+  <img src="screenshot-main-dark.png" alt="The Dictation Tool window showing transcribed text">
+  <img src="screenshot-settings-light.png" alt="The settings panel with language, device and model options">
+</div>
+
+<h2>What it does</h2>
+<p>
+  You hold down a key. You talk. You let go. A second later your words appear
+  wherever your cursor is — a browser, Word, a chat window, a code editor,
+  anything you can type into.
+</p>
+<p>
+  The speech recognition runs on your own computer using
+  <a href="https://github.com/SYSTRAN/faster-whisper">Whisper</a>. Your voice
+  is never uploaded. You can pull out the network cable and it still works.
+</p>
+
+<h2>How it compares</h2>
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <th>Dictation Tool</th>
+      <th>Windows Voice Typing</th>
+      <th>Dragon</th>
+      <th>Otter.ai</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>Price</td><td>Free</td><td>Free</td><td>Paid</td><td>Free tier, then paid</td></tr>
+    <tr><td>Works offline</td><td>Yes</td><td>No</td><td>Yes</td><td>No</td></tr>
+    <tr><td>Needs an account</td><td>No</td><td>No</td><td>Yes</td><td>Yes</td></tr>
+    <tr><td>Types into any app</td><td>Yes</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+    <tr><td>Voice commands</td><td>No</td><td>Some</td><td>Yes</td><td>No</td></tr>
+    <tr><td>Open source</td><td>Yes</td><td>No</td><td>No</td><td>No</td></tr>
+  </tbody>
+</table>
+</div>
+<p style="color:var(--muted);font-size:.9rem">
+  Honest note: Dragon is bought mostly for controlling a computer by voice, and
+  this does not do that. It dictates text, and it does that part for free and
+  without a connection.
+</p>
+
+<h2>Install</h2>
+<p>
+  <a href="https://github.com/bryramirezp/dictation-tool/releases/latest">Download the installer</a>
+  and run it. It installs for your user only, so Windows never asks for an
+  administrator password.
+</p>
+<p>
+  The installer is not signed, so Windows may show a blue box saying "Windows
+  protected your PC". Click <strong>More info</strong>, then <strong>Run
+  anyway</strong>. Signing a program costs money every year, which is a lot for
+  a free tool.
+</p>
+<p>Prefer to run the source?</p>
+<pre>git clone https://github.com/bryramirezp/dictation-tool.git
+cd dictation-tool
+py -3 -m pip install -r requirements.txt
+launch.bat</pre>
+
+<h2 class="faq" style="border:0">Questions</h2>
+<div class="faq">
+
+  <h3>Does it work offline?</h3>
+  <p>
+    Yes. The first run downloads the speech model, about 460 MB. After that it
+    never needs the internet again, and your voice is processed entirely on your
+    own machine.
+  </p>
+
+  <h3>Is it free?</h3>
+  <p>
+    Yes, and it is open source under the MIT license. No account, no
+    subscription, no paid tier, no trial that runs out.
+  </p>
+
+  <h3>Is this a free alternative to Dragon NaturallySpeaking?</h3>
+  <p>
+    For dictation, yes. You hold a key, speak, and the text is typed for you. It
+    does not replace Dragon's voice commands for driving Windows by voice.
+  </p>
+
+  <h3>How is it different from Windows Voice Typing (Win+H)?</h3>
+  <p>
+    Windows Voice Typing sends your audio to Microsoft and needs a connection.
+    This runs the model locally, works with no connection at all, and lets you
+    pick a larger and more accurate model than the built-in one.
+  </p>
+
+  <h3>Which languages does it support?</h3>
+  <p>
+    Spanish, English, Portuguese, French, German and Italian. You choose one
+    rather than letting it guess, which makes it faster and stops it from
+    getting the language wrong on short recordings.
+  </p>
+
+  <h3>Do I need a graphics card?</h3>
+  <p>
+    No. The download runs on your processor. If you have an NVIDIA card and
+    install from the source code, it can use it and get much faster.
+  </p>
+
+  <h3>Is my voice sent anywhere?</h3>
+  <p>
+    No. Nothing leaves your computer. The microphone is only open while you hold
+    the key, so nothing is listening the rest of the time.
+  </p>
+
+  <h3>Which key does it use?</h3>
+  <p>
+    <code>Insert</code> by default, and you can change it to any key or an extra
+    mouse button. Avoid normal letters: the key is not blocked, so choosing
+    <code>q</code> would start a recording every time you typed one.
+  </p>
+
+</div>
+
+<footer>
+  <a href="https://github.com/bryramirezp/dictation-tool">Source on GitHub</a> ·
+  MIT licensed · Made by <a href="https://github.com/bryramirezp">bryramirezp</a>
+</footer>
+
+</div>
+</body>
+</html>

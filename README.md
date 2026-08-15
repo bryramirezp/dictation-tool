@@ -4,11 +4,15 @@
 
 # Dictation Tool
 
-**Hold a key, speak, and it types for you.**
+**Free offline speech to text for Windows.**
+Hold a key, speak, and it types for you.
 
-Free, open source, and it works without internet.
+No account, no cloud, no subscription.
 
 <img src="docs/screenshot-main-dark.png" alt="The main window" width="300">
+
+[**Download for Windows**](https://github.com/bryramirezp/dictation-tool/releases/latest)
+ · [Website](https://bryramirezp.github.io/dictation-tool/)
 
 </div>
 
@@ -20,6 +24,23 @@ whatever app you were using — your browser, Word, a chat, anywhere you can typ
 It uses [faster-whisper](https://github.com/SYSTRAN/faster-whisper) to turn speech
 into text. Everything happens on your own computer. Your voice is never sent
 anywhere, and you can unplug the internet and it still works.
+
+People usually find this while looking for a **free alternative to Dragon
+NaturallySpeaking**, an **offline speech to text tool for Windows**, or something
+better than **Windows Voice Typing (Win+H)**, which needs an internet connection
+and sends your audio to Microsoft.
+
+| | Dictation Tool | Windows Voice Typing | Dragon | Otter.ai |
+|---|---|---|---|---|
+| Price | Free | Free | Paid | Free tier, then paid |
+| Works offline | Yes | No | Yes | No |
+| Needs an account | No | No | Yes | Yes |
+| Types into any app | Yes | Yes | Yes | No |
+| Voice commands | No | Some | Yes | No |
+| Open source | Yes | No | No | No |
+
+Dragon is bought mostly for driving a computer by voice, and this does not do
+that. It dictates text, and that part is free and works with no connection.
 
 ## Download
 
@@ -112,6 +133,38 @@ To rebuild the icons after changing the drawing in the app:
 ```bat
 py -3 tools/make_logo.py
 ```
+
+## Questions
+
+### Does it work offline?
+
+Yes. The first run downloads the speech model, about 460 MB. After that it never
+needs the internet again.
+
+### Is it free?
+
+Yes, and open source under the MIT license. No account, no subscription, no
+trial that runs out.
+
+### Is this a free alternative to Dragon NaturallySpeaking?
+
+For dictation, yes. It does not replace Dragon's voice commands for controlling
+Windows by voice.
+
+### How is it different from Windows Voice Typing (Win+H)?
+
+Windows Voice Typing sends your audio to Microsoft and needs a connection. This
+runs on your own machine, works with no connection at all, and lets you pick a
+larger and more accurate model.
+
+### Which languages does it support?
+
+Spanish, English, Portuguese, French, German and Italian.
+
+### Do I need a graphics card?
+
+No. The download runs on your processor. See below if you have an NVIDIA card
+and want it faster.
 
 ## Your privacy
 
