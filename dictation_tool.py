@@ -16,6 +16,13 @@ import time
 import queue
 import ctypes
 
+# True in the downloadable build. It leaves the CUDA libraries out on purpose --
+# they weigh 925 MB against 190 MB for the whole rest of the program -- so a
+# graphics card is simply not on offer there, and pretending otherwise strands
+# anyone who picks it.
+IS_PACKAGED = getattr(sys, "frozen", False)
+SOURCE_URL  = "https://github.com/bryramirezp/dictation-tool"
+
 # ── Single instance guard ─────────────────────────────────────────────────────
 def ensure_single_instance():
     kernel32 = ctypes.windll.kernel32
@@ -157,6 +164,12 @@ def _migrate(s):
     # gone and old files fall back to the default language.
     if s.get("language") not in LANGUAGE_CODES:
         s["language"] = DEFAULT_SETTINGS["language"]
+
+    # The downloadable build has no CUDA libraries, so "gpu" can only ever fail
+    # there. It happens to people who used the source version first and then
+    # installed this one over the same settings file.
+    if IS_PACKAGED and s.get("device") == "gpu":
+        s["device"] = "auto"
     return s
 
 def save_settings(s):
@@ -523,7 +536,13 @@ def load_model(device, compute, model_size, on_done=None, on_error=None):
     try:
         if device == "cuda" and not cuda_libs_present():
             # Say what to do instead of letting ctranslate2 fail with a DLL name
-            # nobody outside this project would recognise.
+            # nobody outside this project would recognise. The advice differs:
+            # telling someone running the downloaded build to use pip would send
+            # them looking for something that is not there.
+            if IS_PACKAGED:
+                raise RuntimeError(
+                    "This download only uses your processor. To use your "
+                    f"graphics card, install from the source code: {SOURCE_URL}")
             raise RuntimeError(
                 "Your graphics card is missing some files. Open a terminal and "
                 "run:  pip install nvidia-cublas-cu12  ...or set Device back "
@@ -1049,7 +1068,11 @@ class DictationToolApp(ctk.CTk):
         # ── Device
         section("DEVICE")
         self._device_var = ctk.StringVar(value=self._settings.get("device", "auto"))
-        self._device_seg = segmented(["auto", "cpu", "gpu"], self._device_var)
+        # No "gpu" in the downloadable build: it cannot honour it, so offering
+        # it would only be a button that breaks the app.
+        self._device_seg = segmented(
+            ["auto", "cpu"] if IS_PACKAGED else ["auto", "cpu", "gpu"],
+            self._device_var)
         self._device_hint = hint(self._device_hint_text())
         self._device_var.trace_add("write", lambda *_: self._device_hint.configure(
             text=self._device_hint_text()))
@@ -1182,6 +1205,9 @@ class DictationToolApp(ctk.CTk):
     def _device_hint_text(self):
         v = self._device_var.get()
         if v == "auto":
+            if IS_PACKAGED:
+                return ("Uses your processor. This download does not come with "
+                        "graphics card support, to keep it small.")
             return ("Uses your graphics card if you have one, and your processor "
                     "if you do not. This is the safe choice.")
         if v == "cpu":

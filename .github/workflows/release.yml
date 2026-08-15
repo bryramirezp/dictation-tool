@@ -65,9 +65,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          gh release create "${{ github.ref_name }}" `
-            (Get-Item dist/DictationTool-Setup-*.exe).FullName `
-            (Get-Item dist/DictationTool-*-portable.zip).FullName `
-            dist/SHA256SUMS.txt `
-            --title "Dictation Tool ${{ github.ref_name }}" `
-            --generate-notes
+          $tag = "${{ github.ref_name }}"
+          $files = @(
+            (Get-Item dist/DictationTool-Setup-*.exe).FullName
+            (Get-Item dist/DictationTool-*-portable.zip).FullName
+            (Resolve-Path dist/SHA256SUMS.txt).Path
+          )
+          # The release may already exist: creating the tag through the web or
+          # the gh CLI publishes one and then triggers this workflow.
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag @files --clobber
+          } else {
+            gh release create $tag @files --title "Dictation Tool $tag" --generate-notes
+          }
