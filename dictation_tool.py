@@ -10,11 +10,13 @@ __version__ = "0.1.0"
 import sys
 import os
 import json
+import math
 import subprocess
 import threading
 import time
 import queue
 import ctypes
+from collections import deque
 
 # True in the downloadable build. It leaves the CUDA libraries out on purpose --
 # they weigh 925 MB against 190 MB for the whole rest of the program -- so a
@@ -102,6 +104,7 @@ import pyperclip
 import pyautogui
 import pystray
 import customtkinter as ctk
+import tkinter as tk
 from PIL import Image, ImageDraw
 from pynput.mouse import Button, Listener as MouseListener
 from pynput.keyboard import Key, KeyCode, Listener as KeyboardListener
@@ -229,10 +232,7 @@ THEMES = {
         "hover_settings":      "#1f2a0c",
         "dot_idle":            "#666666",
         "dot_rec":             "#f72929",   # red stays red: recording is a
-        "bar_track":           "#1f1f1f",   # state, not part of the brand
         "bar_idle":            "#333333",
-        "bar_spin":            "#5c7615",
-        "bar_rec":             "#771111",
         "scrollbar":           "#333333",
         "scrollbar_hover":     "#4d4d4d",
         "accent_bg":           BRAND_LIME,
@@ -273,10 +273,7 @@ THEMES = {
         "hover_settings":      "#eaf5d0",
         "dot_idle":            "#cccccc",
         "dot_rec":             "#c82121",
-        "bar_track":           "#eaeaea",
         "bar_idle":            "#cccccc",
-        "bar_spin":            "#cde88a",
-        "bar_rec":             "#e2a0a0",
         "scrollbar":           "#cccccc",
         "scrollbar_hover":     "#999999",
         "accent_bg":           BRAND_LIME,
@@ -547,6 +544,7 @@ SAMPLE_RATE        = 16000
 
 stream             = None      # open only while recording
 stream_samplerate  = SAMPLE_RATE
+input_level        = 0.0       # 0..1, written by the audio thread for the meter
 
 _current_hotkey_str = "key:insert"   # updated from settings at startup / apply
 _trigger_down       = False           # tracks press state regardless of kind
@@ -580,11 +578,26 @@ def load_model(device, compute, model_size, on_done=None, on_error=None):
 
 # ── Audio ─────────────────────────────────────────────────────────────────────
 def audio_callback(indata, frames, time_info, status):
+    global input_level
     if recording:
         audio_frames.append(indata.copy())
+        # Loudness of this block, for the meter. A plain float assignment, read
+        # by the UI thread without a lock: one number, last writer wins, and a
+        # dropped frame at 30 fps is invisible. Cheap enough to run in the audio
+        # callback, which must not block.
+        rms = float(np.sqrt(np.mean(np.square(indata), dtype=np.float64)))
+        db  = 20.0 * math.log10(max(rms, 1e-6))
+        # -55 dB is a quiet room, -10 dB is talking close to the mic. Working in
+        # decibels rather than raw amplitude is what makes normal speech fill
+        # the meter instead of hugging the floor.
+        input_level = min(1.0, max(0.0, (db + 55.0) / 45.0))
 
-def _hold_hint():
-    return f"Hold {hotkey_display_name(_current_hotkey_str)} to record"
+def _idle_status():
+    return "READY"
+
+def _key_label():
+    """Just the key, for the keycap under the log."""
+    return hotkey_display_name(_current_hotkey_str).upper()
 
 def _open_stream():
     """Open input stream on the currently selected mic. Called at each record start,
@@ -643,7 +656,7 @@ def stop_and_transcribe():
         tray_icon.title = "Dictation Tool — ready"
     ui_queue.put(("recording", False))
     if not audio_frames:
-        ui_queue.put(("status", _hold_hint(), theme_color("status_idle")))
+        ui_queue.put(("status", _idle_status(), theme_color("status_idle")))
         return
     data = np.concatenate(audio_frames, axis=0).flatten().astype(np.float32)
     sr = stream_samplerate
@@ -662,7 +675,7 @@ def _transcribe(audio_data, sr):
         # hallucinate text, so bail out early instead.
         if dur < 0.2 or peak < 0.005:
             ui_queue.put(("log", "Too short or too quiet — nothing to type.", "dim"))
-            ui_queue.put(("status", _hold_hint(), theme_color("status_idle")))
+            ui_queue.put(("status", _idle_status(), theme_color("status_idle")))
             return
 
         if sr != SAMPLE_RATE:
@@ -689,7 +702,7 @@ def _transcribe(audio_data, sr):
 
         if text:
             ui_queue.put(("log", text, "said"))
-            ui_queue.put(("status", _hold_hint(), theme_color("status_idle")))
+            ui_queue.put(("status", _idle_status(), theme_color("status_idle")))
             prev = pyperclip.paste()
             pyperclip.copy(text)
             pyautogui.hotkey("ctrl", "v")
@@ -697,10 +710,10 @@ def _transcribe(audio_data, sr):
             pyperclip.copy(prev)
         else:
             ui_queue.put(("log", "I didn't hear any words.", "dim"))
-            ui_queue.put(("status", _hold_hint(), theme_color("status_idle")))
+            ui_queue.put(("status", _idle_status(), theme_color("status_idle")))
     except Exception as e:
         ui_queue.put(("log", f"Something went wrong: {e}", "error"))
-        ui_queue.put(("status", _hold_hint(), theme_color("status_idle")))
+        ui_queue.put(("status", _idle_status(), theme_color("status_idle")))
 
 # ── Mouse listener ────────────────────────────────────────────────────────────
 def on_mouse_click(x, y, button, pressed):
@@ -821,6 +834,11 @@ class DictationToolApp(ctk.CTk):
     CONTENT_W = W - SCROLLBAR_W - BORDER_SPACING - 2 * INNER_PAD   # 266
     WRAP_W    = CONTENT_W - 8                                      # 258, keeps text inside
 
+    # Level meter: bars across the full content width.
+    METER_N = 34                        # bars
+    METER_W = 4                         # bar thickness, px
+    METER_H = 26                        # canvas height, px
+
     def __init__(self):
         super().__init__()
         self._settings = load_settings()
@@ -898,19 +916,39 @@ class DictationToolApp(ctk.CTk):
         # than be hardcoded — otherwise switching theme after load pins the label
         # at "Loading model..." forever.
         if self._model_is_ready:
-            status_text, status_color = _hold_hint(), t["status_idle"]
+            status_text, status_color = _idle_status(), t["status_idle"]
         else:
-            status_text, status_color = "Getting ready...", t["status_loading"]
+            status_text, status_color = "GETTING READY", t["status_loading"]
+        # A phase word in monospace, not a sentence. It changes several times a
+        # minute right above a meter that is also moving, and a short fixed-width
+        # word reads as a state changing rather than as text being replaced.
         self._status = ctk.CTkLabel(self._main_frame,
                                     text=status_text,
-                                    font=("Segoe UI", 11), text_color=status_color)
-        self._status.pack(pady=(12, 4))
+                                    font=("Consolas", 11), text_color=status_color)
+        self._status.pack(pady=(14, 6))
 
-        # ── Rec bar
-        self._bar = ctk.CTkProgressBar(self._main_frame, width=self.CONTENT_W, height=5,
-                                       progress_color=t["bar_idle"], fg_color=t["bar_track"])
-        self._bar.set(0)
-        self._bar.pack(pady=(0, 10))
+        # ── Level meter
+        # A canvas of bars rather than a progress bar. While recording these are
+        # the real loudness of the microphone, so it doubles as the answer to
+        # "is it even hearing me?" -- the question a flat animated bar cannot
+        # answer, because it moves exactly the same whether you speak or not.
+        self._meter = tk.Canvas(self._main_frame, width=self.CONTENT_W,
+                                height=self.METER_H, highlightthickness=0,
+                                bd=0, bg=t["bg_root"])
+        self._meter.pack(pady=(2, 10))
+        self._meter_bars = []
+        step = self.CONTENT_W / self.METER_N
+        for i in range(self.METER_N):
+            x = step * (i + 0.5)
+            self._meter_bars.append(self._meter.create_line(
+                x, 0, x, 0, width=self.METER_W, capstyle="round",
+                fill=t["bar_idle"]))
+        self._levels = deque([0.0] * self.METER_N, maxlen=self.METER_N)
+        # Survives a theme switch: this runs again on rebuild, and resetting to
+        # idle would freeze the loading meter half way through the model load.
+        self._meter_state = getattr(self, "_meter_state", "idle")
+        self._meter_phase = getattr(self, "_meter_phase", 0)
+        self._draw_meter()
 
         # ── Model info label
         self._model_info = ctk.CTkLabel(self._main_frame, text=self._last_model_label,
@@ -926,7 +964,9 @@ class DictationToolApp(ctk.CTk):
             anchor="w", padx=20, pady=(8, 4))
 
         # ── Log
-        self._log = ctk.CTkTextbox(self._main_frame, width=self.CONTENT_W, height=250,
+        # 220, not 250: the meter is 26px tall where the old progress bar was 5,
+        # and the extra 27px pushed the key hint off the bottom of the window.
+        self._log = ctk.CTkTextbox(self._main_frame, width=self.CONTENT_W, height=220,
                                    font=("Consolas", 11), fg_color=t["bg_log"],
                                    text_color=t["text_body"], border_color=t["border"],
                                    border_width=1, corner_radius=6,
@@ -944,12 +984,23 @@ class DictationToolApp(ctk.CTk):
                 pass
         self._restore_log()
 
+        # ── Which key to hold
+        # This used to repeat the status label word for word: both said "Hold
+        # Insert to record", one above the other with the log in between. The
+        # status is now the phase, and the instruction lives here, drawn as the
+        # key itself so it reads at a glance instead of being parsed.
+        foot = ctk.CTkFrame(self._main_frame, fg_color="transparent")
+        foot.pack(pady=(0, 10))
+        ctk.CTkLabel(foot, text="hold", font=("Segoe UI", 9),
+                     text_color=t["text_hint"]).pack(side="left", padx=(0, 6))
         self._hold_label = ctk.CTkLabel(
-            self._main_frame,
-            text=_hold_hint(),
-            font=("Segoe UI", 9), text_color=t["text_hint"]
+            foot, text=_key_label(), font=("Consolas", 9, "bold"),
+            text_color=t["text_body"], fg_color=t["bg_button"],
+            corner_radius=5, width=0, height=20, padx=8,
         )
-        self._hold_label.pack(pady=(0, 8))
+        self._hold_label.pack(side="left")
+        ctk.CTkLabel(foot, text="to record", font=("Segoe UI", 9),
+                     text_color=t["text_hint"]).pack(side="left", padx=(6, 0))
 
     def _build_settings(self):
         t = self.theme
@@ -1204,7 +1255,7 @@ class DictationToolApp(ctk.CTk):
                 text_color=self.theme["text_on_button"],
             )
             self._hotkey_hint.configure(text="Saved. Click again to change it.")
-            self._hold_label.configure(text=_hold_hint())
+            self._hold_label.configure(text=_key_label())
         except queue.Empty:
             if _capturing_hotkey:
                 self.after(100, self._capture_hotkey_poll)
@@ -1294,23 +1345,60 @@ class DictationToolApp(ctk.CTk):
         )
 
     # ── UI queue processor ────────────────────────────────────────────────────
-    def _start_loading_spinner(self):
-        self._spinner_active = True
-        self._spinner_idx = 0
-        self._tick_spinner()
+    # ── Level meter ───────────────────────────────────────────────────────────
+    # One timer and one state, on purpose. There used to be two after() chains
+    # writing to the same widget: a loading spinner that only stopped once the
+    # model was ready, and a recording animation that started on the first
+    # recording. Recording before the model finished loading left both running,
+    # at 120ms and 55ms, fighting over the same bar with different colours.
 
-    def _tick_spinner(self):
-        if not getattr(self, "_spinner_active", False):
+    def _set_meter(self, state):
+        self._meter_state = state
+        if state != "recording":
+            self._levels.extend([0.0] * self.METER_N)
+
+    def _start_meter(self):
+        if getattr(self, "_meter_running", False):
             return
-        self._spinner_idx += 1
-        self._bar.set((self._spinner_idx % 20) / 20)
-        self._bar.configure(progress_color=self.theme["bar_spin"])
-        self.after(120, self._tick_spinner)
+        self._meter_running = True
+        self._tick_meter()
 
-    def _stop_spinner(self):
-        self._spinner_active = False
-        self._bar.set(0)
-        self._bar.configure(progress_color=self.theme["bar_idle"])
+    def _tick_meter(self):
+        if not getattr(self, "_meter_running", False):
+            return
+        self._meter_phase += 1
+
+        if self._meter_state == "recording":
+            self._levels.append(input_level)
+        elif self._meter_state == "loading":
+            # A bump travelling left to right: it says "busy" without pretending
+            # to know how far along the download is, which nothing here does.
+            centre = (self._meter_phase / 3.0) % (self.METER_N + 10) - 5
+            self._levels.clear()
+            for i in range(self.METER_N):
+                d = (i - centre) / 3.2
+                self._levels.append(math.exp(-d * d) * 0.9)
+
+        self._draw_meter()
+        self.after(33, self._tick_meter)          # ~30 fps
+
+    def _draw_meter(self):
+        t = self.theme
+        # log_ok, not accent_bg: these bars are read, not just filled, and raw
+        # lime is 1.63:1 on the light theme's white. log_ok is the brand green
+        # already solved per theme -- lime on dark, #5c7615 on light.
+        #
+        # Loading is deliberately grey. It keeps the brand colour meaning "this
+        # is your voice" instead of also meaning "something is happening".
+        colour = {"recording": t["log_ok"],
+                  "loading":   t["text_hint"]}.get(self._meter_state, t["bar_idle"])
+        mid = self.METER_H / 2
+        floor_h = self.METER_W / 2                # a dot when silent, not a gap
+        for bar, level in zip(self._meter_bars, self._levels):
+            half = floor_h + level * (self.METER_H / 2 - floor_h - 1)
+            self._meter.coords(bar, self._meter.coords(bar)[0], mid - half,
+                               self._meter.coords(bar)[0], mid + half)
+            self._meter.itemconfigure(bar, fill=colour)
 
     def _process_ui_queue(self):
         try:
@@ -1323,14 +1411,14 @@ class DictationToolApp(ctk.CTk):
                 elif msg[0] == "log":
                     self._append_log(msg[1], msg[2])
                 elif msg[0] == "model_ready":
-                    self._stop_spinner()
+                    self._set_meter("idle")
                     d, c, m = msg[1], msg[2], msg[3]
                     where = "graphics card" if d == "cuda" else "processor"
                     label = f"{m} model  ·  running on your {where}"
                     self._last_model_label = label
                     self._model_is_ready = True
                     self._model_info.configure(text=label, text_color=self.theme["model_ready_text"])
-                    self._status.configure(text=_hold_hint(), text_color=self.theme["status_idle"])
+                    self._status.configure(text=_idle_status(), text_color=self.theme["status_idle"])
                     self._append_log("Ready to use.", "ok")
         except queue.Empty:
             pass
@@ -1340,24 +1428,12 @@ class DictationToolApp(ctk.CTk):
         t = self.theme
         if is_rec:
             self._dot.configure(text_color=t["dot_rec"])
-            self._status.configure(text="Recording...", text_color=t["rec_status_text"])
-            self._bar.configure(progress_color=t["bar_rec"])
-            self._animate_bar(True, 0.0)
+            self._status.configure(text="LISTENING", text_color=t["rec_status_text"])
+            self._set_meter("recording")
         else:
             self._dot.configure(text_color=t["dot_idle"])
-            self._status.configure(text="Writing it down...", text_color=t["processing_text"])
-            self._bar.set(0)
-            self._bar.configure(progress_color=t["bar_idle"])
-
-    def _animate_bar(self, up, val):
-        if not recording:
-            self._bar.set(0)
-            return
-        val += 0.06 if up else -0.06
-        if val >= 1.0:  up = False
-        elif val <= 0.0: up, val = True, 0.0
-        self._bar.set(abs(val))
-        self.after(55, lambda: self._animate_bar(up, val))
+            self._status.configure(text="WRITING IT DOWN", text_color=t["processing_text"])
+            self._set_meter("idle")
 
     def _append_log(self, text, tag):
         self._log_lines.append((text, tag))
@@ -1415,7 +1491,7 @@ def main():
                          f"Key: {hotkey_display_name(_current_hotkey_str)}", "dim"))
     ui_queue.put(("status", "Getting ready...", theme_color("status_loading")))
     app_gui.update()
-    app_gui.after(200, app_gui._start_loading_spinner)
+    app_gui.after(200, lambda: (app_gui._set_meter("loading"), app_gui._start_meter()))
 
     def _on_model_ready(d, c, m):
         ui_queue.put(("model_ready", d, c, m))
