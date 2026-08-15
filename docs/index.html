@@ -19,6 +19,19 @@
 
 <link rel="icon" href="logo.png">
 
+<script>
+// Runs before anything paints, so a returning visitor never sees the wrong
+// theme flash first. Dark is the default; the system preference only decides
+// for someone who has not touched the switch.
+(function () {
+  var saved = null;
+  try { saved = localStorage.getItem('theme'); } catch (e) {}
+  var wantsLight = saved ? saved === 'light'
+                         : window.matchMedia('(prefers-color-scheme: light)').matches;
+  document.documentElement.setAttribute('data-theme', wantsLight ? 'light' : 'dark');
+})();
+</script>
+
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -71,26 +84,46 @@
 
 <style>
 /* ─────────────────────────────────────────────────────────────────────────────
-   Dark only, on purpose. The lime measures 11.77:1 on near-black and 1.63:1 on
-   white, so the identity is native to dark and only half-works in light. One
-   look done properly beats two done partly.
+   Dark is the native theme: the lime measures 11.77:1 on near-black and only
+   1.63:1 on white. So the lime stays a *surface* in both themes -- filled, with
+   near-black text on top, it is 11.77:1 either way -- and wherever it has to be
+   read as text it drops to #5c7615, the same hue at 5.18:1 on white. That is
+   what --accent-text is for; --lime is only ever a fill.
    ───────────────────────────────────────────────────────────────────────── */
-:root {
-  --lime:     #abdb25;
-  --lime-hi:  #bce62f;
-  --ink:      #0f0f0f;
-  --bg:       #0f0f0f;
-  --panel:    #171717;
-  --panel-2:  #1c1c1c;
-  --line:     #262626;
-  --line-hi:  #333333;
-  --title:    #ffffff;
-  --body:     #cccccc;
-  --muted:    #999999;
-  --quiet:    #666666;
+:root, :root[data-theme="dark"] {
+  --lime:        #abdb25;
+  --lime-hi:     #bce62f;
+  --accent-text: #abdb25;
+  --ink:         #0f0f0f;
+  --bg:          #0f0f0f;
+  --panel:       #171717;
+  --panel-2:     #1c1c1c;
+  --line:        #262626;
+  --line-hi:     #333333;
+  --title:       #ffffff;
+  --body:        #cccccc;
+  --muted:       #999999;
+  --quiet:       #666666;
+  --bloom:       rgba(171, 219, 37, .13);
+  --tint:        rgba(171, 219, 37, .05);
 
   --mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
   --sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+:root[data-theme="light"] {
+  --accent-text: #5c7615;   /* 5.18:1 on white; the lime itself is 1.63:1 */
+  --bg:          #ffffff;
+  --panel:       #f7f7f7;
+  --panel-2:     #f2f2f2;
+  --line:        #e4e4e4;
+  --line-hi:     #cccccc;
+  --title:       #333333;
+  --body:        #595959;
+  --muted:       #6e6e6e;
+  --quiet:       #8a8a8a;
+  --bloom:       rgba(171, 219, 37, .22);
+  --tint:        rgba(171, 219, 37, .12);
 }
 
 * { box-sizing: border-box; }
@@ -101,7 +134,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 img { max-width: 100%; }
-a { color: var(--lime); text-decoration-color: color-mix(in srgb, var(--lime) 40%, transparent); }
+a { color: var(--accent-text); text-decoration-color: color-mix(in srgb, var(--accent-text) 45%, transparent); }
 p { margin: 0 0 1em; }
 
 .wrap { max-width: 940px; margin: 0 auto; padding: 0 22px; }
@@ -113,9 +146,31 @@ h3 { font-size: 1.05rem; margin: 2em 0 .3em; }
 
 .eyebrow {
   font: 600 .72rem/1 var(--mono); letter-spacing: .18em;
-  color: var(--lime); text-transform: uppercase; margin: 0 0 1.1em;
+  color: var(--accent-text); text-transform: uppercase; margin: 0 0 1.1em;
 }
 section { padding: 92px 0; border-top: 1px solid var(--line); }
+
+/* ── Theme switch ─────────────────────────────────────────────────────────── */
+.theme-toggle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; padding: 0; flex: none;
+  background: var(--panel); color: var(--muted);
+  border: 1px solid var(--line-hi); border-radius: 9px;
+  cursor: pointer; transition: color .15s ease, border-color .15s ease;
+}
+.theme-toggle:hover { color: var(--title); border-color: var(--accent-text); }
+.theme-toggle svg { width: 18px; height: 18px; display: block; }
+/* Each icon shows the theme you would switch *to*, so only one is ever drawn. */
+:root[data-theme="dark"]  .theme-toggle .i-dark  { display: none; }
+:root[data-theme="light"] .theme-toggle .i-light { display: none; }
+
+.hero .theme-toggle { position: absolute; top: 0; right: 22px; }
+
+/* Screenshots follow the switch. The settings window matches the page so it
+   sits in it naturally; the main window shows the opposite theme, so whichever
+   way the switch is thrown a visitor still sees that both exist. */
+:root[data-theme="dark"]  .on-light { display: none; }
+:root[data-theme="light"] .on-dark  { display: none; }
 
 /* ── Sticky bar, appears once the hero button is gone ─────────────────────── */
 .topbar {
@@ -137,7 +192,7 @@ section { padding: 92px 0; border-top: 1px solid var(--line); }
 .hero::before {          /* one soft lime bloom behind the mark, nothing more */
   content: ""; position: absolute; left: 50%; top: -180px;
   width: 780px; height: 520px; transform: translateX(-50%);
-  background: radial-gradient(closest-side, rgba(171,219,37,.13), transparent 72%);
+  background: radial-gradient(closest-side, var(--bloom), transparent 72%);
   pointer-events: none;
 }
 .hero .wrap { position: relative; text-align: center; }
@@ -146,7 +201,7 @@ section { padding: 92px 0; border-top: 1px solid var(--line); }
   font-size: clamp(2.6rem, 7vw, 4.4rem);
   letter-spacing: -.035em; margin: .3em 0 .22em;
 }
-.hero h1 .lime { color: var(--lime); }
+.hero h1 .lime { color: var(--accent-text); }
 .lede {
   font-size: clamp(1.05rem, 2.2vw, 1.28rem); color: var(--body);
   max-width: 30em; margin: 0 auto 2em;
@@ -247,7 +302,7 @@ section { padding: 92px 0; border-top: 1px solid var(--line); }
   content: ""; position: absolute; left: 22px; right: 22px; top: 0;
   height: 2px; background: var(--lime); border-radius: 0 0 2px 2px;
 }
-.beats .n { font: 700 .72rem/1 var(--mono); letter-spacing: .16em; color: var(--lime); }
+.beats .n { font: 700 .72rem/1 var(--mono); letter-spacing: .16em; color: var(--accent-text); }
 .beats b { display: block; color: var(--title); margin: .7em 0 .3em; font-size: 1.02rem; }
 
 /* ── Shots ────────────────────────────────────────────────────────────────── */
@@ -262,8 +317,8 @@ table { border-collapse: collapse; width: 100%; font-size: .93rem; min-width: 56
 th, td { text-align: left; padding: 13px 14px; border-bottom: 1px solid var(--line); }
 th { color: var(--muted); font-weight: 600; font-size: .82rem; letter-spacing: .04em; text-transform: uppercase; }
 td:first-child { color: var(--muted); }
-th:nth-child(2), td:nth-child(2) { color: var(--title); font-weight: 600; background: rgba(171,219,37,.05); }
-th:nth-child(2) { color: var(--lime); }
+th:nth-child(2), td:nth-child(2) { color: var(--title); font-weight: 600; background: var(--tint); }
+th:nth-child(2) { color: var(--accent-text); }
 
 /* ── Code, cards, steps ───────────────────────────────────────────────────── */
 pre {
@@ -300,7 +355,7 @@ details summary {
 details summary::-webkit-details-marker { display: none; }
 details summary::after {
   content: "+"; position: absolute; right: 4px; top: 15px;
-  color: var(--lime); font: 400 1.3rem/1 var(--mono);
+  color: var(--accent-text); font: 400 1.3rem/1 var(--mono);
 }
 details[open] summary::after { content: "\2212"; }
 details p { margin: 0 0 18px; max-width: 62em; }
@@ -314,12 +369,14 @@ footer { border-top: 1px solid var(--line); padding: 40px 0 60px; color: var(--q
   <div class="wrap">
     <img src="logo.png" alt=""><b>Dictation Tool</b>
     <span class="grow"></span>
+    <button class="theme-toggle" data-theme-toggle type="button"></button>
     <a class="btn" href="https://github.com/bryramirezp/dictation-tool/releases/latest/download/DictationTool-Setup.exe">Download</a>
   </div>
 </div>
 
 <header class="hero">
   <div class="wrap">
+    <button class="theme-toggle" data-theme-toggle type="button"></button>
     <img class="mark" src="logo.png" alt="Dictation Tool logo">
     <h1>Speak.<br>It <span class="lime">types</span>.</h1>
     <p class="lede">
@@ -382,12 +439,18 @@ footer { border-top: 1px solid var(--line); padding: 40px 0 60px; color: var(--q
     <h2>A small window that stays out of the way</h2></div>
     <div class="shots" style="margin-top:2.4em">
       <figure>
-        <img src="screenshot-main-dark.png" alt="The Dictation Tool window showing text that was just dictated">
-        <figcaption>What you said, kept in view</figcaption>
+        <img class="on-dark"  src="screenshot-main-light.png"
+             alt="The Dictation Tool window in its light theme, showing text that was just dictated">
+        <img class="on-light" src="screenshot-main-dark.png"
+             alt="The Dictation Tool window in its dark theme, showing text that was just dictated">
+        <figcaption>What you said &mdash; shown in the other theme</figcaption>
       </figure>
       <figure>
-        <img src="screenshot-settings-light.png" alt="The settings panel with appearance, hotkey and microphone options">
-        <figcaption>Settings, including a light theme</figcaption>
+        <img class="on-dark"  src="screenshot-settings-dark.png"
+             alt="The settings panel in its dark theme, with appearance, hotkey and microphone options">
+        <img class="on-light" src="screenshot-settings-light.png"
+             alt="The settings panel in its light theme, with appearance, hotkey and microphone options">
+        <figcaption>Settings, matching this page</figcaption>
       </figure>
     </div>
   </div>
@@ -579,6 +642,40 @@ launch.bat</pre>
     }
   }
   cycle();
+
+  // ── Theme switch ─────────────────────────────────────────────────────────
+  var SUN = '<svg class="i-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+            'stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/>' +
+            '<path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2' +
+            'M5.4 5.4l1.6 1.6M17 17l1.6 1.6M18.6 5.4L17 7M7 17l-1.6 1.6"/></svg>';
+  var MOON = '<svg class="i-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+             'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+             '<path d="M20.5 14.3A8.5 8.5 0 1 1 9.7 3.5a6.8 6.8 0 0 0 10.8 10.8z"/></svg>';
+
+  var root = document.documentElement;
+  var toggles = document.querySelectorAll('[data-theme-toggle]');
+
+  function paint() {
+    var dark = root.getAttribute('data-theme') === 'dark';
+    var label = dark ? 'Switch to light mode' : 'Switch to dark mode';
+    Array.prototype.forEach.call(toggles, function (b) {
+      b.innerHTML = SUN + MOON;        // CSS hides whichever does not apply
+      b.setAttribute('aria-label', label);
+      b.setAttribute('title', label);
+    });
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', dark ? '#0f0f0f' : '#ffffff');
+  }
+
+  Array.prototype.forEach.call(toggles, function (b) {
+    b.addEventListener('click', function () {
+      var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('theme', next); } catch (e) {}
+      paint();
+    });
+  });
+  paint();
 
   // The sticky bar only earns its place once the hero button has scrolled away.
   var bar = document.getElementById('topbar');
