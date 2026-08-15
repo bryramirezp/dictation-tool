@@ -235,7 +235,10 @@ section { padding: 92px 0; border-top: 1px solid var(--line); }
 .proof span { color: var(--muted); font-size: .82rem; }
 
 /* ── Beats ────────────────────────────────────────────────────────────────── */
-.beats { display: grid; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); gap: 18px; padding: 0; margin: 0; list-style: none; }
+/* Three explicit columns, not auto-fit: these are one sequence, and auto-fit
+   was orphaning RELEASE onto its own row, which reads as an afterthought. */
+.beats { display: grid; grid-template-columns: 1fr; gap: 18px; padding: 0; margin: 0; list-style: none; }
+@media (min-width: 700px) { .beats { grid-template-columns: repeat(3, 1fr); } }
 .beats li {
   background: var(--panel); border: 1px solid var(--line);
   border-radius: 12px; padding: 22px 22px 24px; position: relative;
