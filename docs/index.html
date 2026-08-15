@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -70,309 +70,521 @@
 </script>
 
 <style>
-  /* Brand palette. The lime is a surface, never ink on a pale background:
-     11.77:1 on near-black, 1.63:1 on white. Filled with near-black text it is
-     11.77:1 in either theme, so the primary button is the same object in both. */
-  :root {
-    --lime:      #abdb25;
-    --lime-hi:   #bce62f;
-    --lime-ink:  #5c7615;   /* same hue at 5.18:1 on white, for text only */
-    --ink:       #0f0f0f;
+/* ─────────────────────────────────────────────────────────────────────────────
+   Dark only, on purpose. The lime measures 11.77:1 on near-black and 1.63:1 on
+   white, so the identity is native to dark and only half-works in light. One
+   look done properly beats two done partly.
+   ───────────────────────────────────────────────────────────────────────── */
+:root {
+  --lime:     #abdb25;
+  --lime-hi:  #bce62f;
+  --ink:      #0f0f0f;
+  --bg:       #0f0f0f;
+  --panel:    #171717;
+  --panel-2:  #1c1c1c;
+  --line:     #262626;
+  --line-hi:  #333333;
+  --title:    #ffffff;
+  --body:     #cccccc;
+  --muted:    #999999;
+  --quiet:    #666666;
 
-    --bg:      #ffffff;
-    --panel:   #f7f7f7;
-    --border:  #cccccc;
-    --title:   #333333;
-    --body:    #595959;
-    --muted:   #6e6e6e;
-    --code-bg: #f2f2f2;
-    --link:    var(--lime-ink);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg:      #0f0f0f;
-      --panel:   #171717;
-      --border:  #333333;
-      --title:   #ffffff;
-      --body:    #cccccc;
-      --muted:   #999999;
-      --code-bg: #1a1a1a;
-      --link:    var(--lime);
-    }
-  }
-  :root[data-theme="dark"] {
-    --bg: #0f0f0f; --panel: #171717; --border: #333333;
-    --title: #ffffff; --body: #cccccc; --muted: #999999;
-    --code-bg: #1a1a1a; --link: var(--lime);
-  }
+  --mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  --sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
 
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--body);
-    font: 16px/1.65 "Segoe UI", system-ui, -apple-system, sans-serif;
-  }
-  .wrap { max-width: 760px; margin: 0 auto; padding: 0 20px 80px; }
-  h1, h2, h3 { color: var(--title); line-height: 1.25; }
-  h1 { font-size: 2.5rem; margin: 0 0 .3em; letter-spacing: -.025em; }
-  h2 {
-    font-size: 1.35rem; margin: 3em 0 .7em;
-    padding-bottom: .4em; border-bottom: 1px solid var(--border);
-  }
-  h3 { font-size: 1.02rem; margin: 1.7em 0 .25em; }
-  a { color: var(--link); }
-  p { margin: 0 0 1em; }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--body);
+  font: 16px/1.65 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; }
+a { color: var(--lime); text-decoration-color: color-mix(in srgb, var(--lime) 40%, transparent); }
+p { margin: 0 0 1em; }
 
-  /* ── Hero: name, promise, one button. Nothing else competes here. */
-  header { text-align: center; padding: 70px 0 0; }
-  header img.mark { width: 88px; height: 88px; }
-  .tagline { font-size: 1.2rem; color: var(--body); margin: 0 auto 1.8em; max-width: 30em; }
+.wrap { max-width: 940px; margin: 0 auto; padding: 0 22px; }
+.narrow { max-width: 720px; margin-inline: auto; }
 
-  .cta {
-    display: inline-block; padding: 15px 38px; border-radius: 8px;
-    background: var(--lime); color: var(--ink);
-    font-size: 1.05rem; font-weight: 700; text-decoration: none;
-    border: 1px solid transparent;
-  }
-  .cta:hover { background: var(--lime-hi); }
-  .cta-note { color: var(--muted); font-size: .87rem; margin: 1em 0 0; }
-  .cta-note a { color: var(--muted); }
+h1, h2, h3 { color: var(--title); line-height: 1.15; }
+h2 { font-size: clamp(1.5rem, 3.4vw, 2rem); letter-spacing: -.02em; margin: 0 0 .3em; }
+h3 { font-size: 1.05rem; margin: 2em 0 .3em; }
 
-  .shots { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin: 54px 0 0; }
-  .shots img { width: 262px; max-width: 100%; border: 1px solid var(--border); border-radius: 10px; }
+.eyebrow {
+  font: 600 .72rem/1 var(--mono); letter-spacing: .18em;
+  color: var(--lime); text-transform: uppercase; margin: 0 0 1.1em;
+}
+section { padding: 92px 0; border-top: 1px solid var(--line); }
 
-  /* ── The three beats of using it. */
-  .beats { display: flex; gap: 18px; flex-wrap: wrap; margin: 0; padding: 0; list-style: none; }
-  .beats li {
-    flex: 1 1 190px; background: var(--panel);
-    border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px;
-  }
-  .beats b { display: block; color: var(--title); margin-bottom: .25em; }
-  .beats .n { color: var(--lime-ink); font-weight: 700; font-size: .8rem; letter-spacing: .08em; }
-  :root[data-theme="dark"] .beats .n { color: var(--lime); }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) .beats .n { color: var(--lime); }
-  }
+/* ── Sticky bar, appears once the hero button is gone ─────────────────────── */
+.topbar {
+  position: fixed; inset: 0 0 auto 0; z-index: 20;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+  transform: translateY(-100%); transition: transform .25s ease;
+}
+.topbar.show { transform: none; }
+.topbar .wrap { display: flex; align-items: center; gap: 12px; height: 58px; }
+.topbar img { width: 26px; height: 26px; }
+.topbar b { color: var(--title); font-size: .95rem; }
+.topbar .grow { flex: 1; }
+.topbar .btn { padding: 8px 18px; font-size: .88rem; }
 
-  .table-scroll { overflow-x: auto; }
-  table { border-collapse: collapse; width: 100%; font-size: .93rem; }
-  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
-  th { color: var(--title); font-weight: 600; }
-  td:first-child { color: var(--title); }
-  tbody tr:first-child td:nth-child(2),
-  tbody tr td:nth-child(2) { color: var(--title); font-weight: 600; }
+/* ── Hero ─────────────────────────────────────────────────────────────────── */
+.hero { position: relative; padding: 104px 0 0; overflow: hidden; border: 0; }
+.hero::before {          /* one soft lime bloom behind the mark, nothing more */
+  content: ""; position: absolute; left: 50%; top: -180px;
+  width: 780px; height: 520px; transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgba(171,219,37,.13), transparent 72%);
+  pointer-events: none;
+}
+.hero .wrap { position: relative; text-align: center; }
+.hero img.mark { width: 72px; height: 72px; }
+.hero h1 {
+  font-size: clamp(2.6rem, 7vw, 4.4rem);
+  letter-spacing: -.035em; margin: .3em 0 .22em;
+}
+.hero h1 .lime { color: var(--lime); }
+.lede {
+  font-size: clamp(1.05rem, 2.2vw, 1.28rem); color: var(--body);
+  max-width: 30em; margin: 0 auto 2em;
+}
 
-  pre {
-    background: var(--code-bg); border: 1px solid var(--border);
-    border-radius: 8px; padding: 14px 16px; overflow-x: auto;
-    font: .88rem/1.5 Consolas, ui-monospace, monospace; color: var(--title);
-  }
-  code { font-family: Consolas, ui-monospace, monospace; font-size: .92em; }
+.btn {
+  display: inline-block; padding: 15px 38px; border-radius: 9px;
+  background: var(--lime); color: var(--ink);
+  font: 700 1.02rem/1 var(--sans); text-decoration: none;
+  border: 1px solid transparent; transition: background .15s ease;
+}
+.btn:hover { background: var(--lime-hi); }
+.btn-ghost {
+  background: transparent; color: var(--body);
+  border-color: var(--line-hi); font-weight: 600;
+}
+.btn-ghost:hover { background: var(--panel); color: var(--title); }
+.sub { color: var(--muted); font-size: .87rem; margin: 1.1em 0 0; }
+.sub a { color: var(--muted); }
 
-  .card {
-    background: var(--panel); border: 1px solid var(--border);
-    border-radius: 12px; padding: 4px 24px 22px; margin-top: 1.4em;
-  }
-  .card img { width: 100%; border: 1px solid var(--border); border-radius: 8px; display: block; }
-  .note {
-    margin: 1.2em 0 0; font-size: .87rem; color: var(--muted);
-    padding-left: 14px; border-left: 3px solid var(--lime);
-  }
+/* ── The demo: the page doing what the product does ───────────────────────── */
+.demo { margin: 62px auto 0; max-width: 640px; text-align: left; }
+.stage {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 14px; overflow: hidden;
+}
+.stage-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 15px; border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+  font: .78rem/1 var(--mono); color: var(--quiet);
+}
+.stage-bar .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line-hi); }
+.stage-bar .dot.live { background: var(--lime); }
+.stage-body { padding: 30px 26px 26px; min-height: 148px; }
 
-  .steps { counter-reset: step; list-style: none; padding: 0; margin: 1.2em 0 0; }
-  .steps > li { counter-increment: step; position: relative; padding-left: 42px; margin-bottom: 24px; }
-  .steps > li::before {
-    content: counter(step);
-    position: absolute; left: 0; top: -2px;
-    width: 28px; height: 28px; border-radius: 50%;
-    background: var(--lime); color: var(--ink);
-    font-size: .85rem; font-weight: 700;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .steps strong { color: var(--title); }
-  kbd {
-    font: .82em Consolas, ui-monospace, monospace;
-    background: var(--code-bg); border: 1px solid var(--border);
-    border-bottom-width: 2px; border-radius: 5px; padding: 2px 6px;
-    color: var(--title); white-space: nowrap;
-  }
+.typed {
+  font: 1.12rem/1.6 var(--sans); color: var(--title);
+  margin: 0; min-height: 3.2em;
+}
+.caret {
+  display: inline-block; width: 2px; height: 1.1em; margin-left: 2px;
+  background: var(--lime); vertical-align: -.16em;
+  animation: blink 1.06s step-end infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
 
-  footer {
-    margin-top: 70px; padding-top: 24px; border-top: 1px solid var(--border);
-    color: var(--muted); font-size: .88rem; text-align: center;
-  }
+.stage-foot {
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 26px 20px;
+  border-top: 1px solid var(--line);
+}
+.keycap {
+  font: 600 .78rem/1 var(--mono); color: var(--muted);
+  padding: 9px 14px; border-radius: 7px;
+  background: var(--panel-2); border: 1px solid var(--line-hi);
+  border-bottom-width: 3px; transition: all .12s ease;
+}
+.rec .keycap {
+  color: var(--ink); background: var(--lime);
+  border-color: var(--lime); border-bottom-width: 1px;
+  transform: translateY(2px);
+}
+.wave { display: flex; align-items: center; gap: 3px; height: 26px; flex: 1; }
+.wave i {
+  width: 3px; height: 4px; border-radius: 2px;
+  background: var(--line-hi); display: block;
+}
+.rec .wave i { background: var(--lime); animation: bounce .62s ease-in-out infinite; }
+@keyframes bounce { 0%, 100% { height: 4px; } 50% { height: 22px; } }
+.phase { font: .76rem/1 var(--mono); color: var(--quiet); letter-spacing: .06em; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .caret, .rec .wave i { animation: none; }
+}
+
+/* ── Proof strip ──────────────────────────────────────────────────────────── */
+.proof {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px; background: var(--line); border: 1px solid var(--line);
+  border-radius: 12px; overflow: hidden; margin-top: 66px;
+}
+.proof div { background: var(--bg); padding: 22px 18px; text-align: center; }
+.proof b { display: block; color: var(--title); font-size: 1.5rem; letter-spacing: -.02em; }
+.proof span { color: var(--muted); font-size: .82rem; }
+
+/* ── Beats ────────────────────────────────────────────────────────────────── */
+.beats { display: grid; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); gap: 18px; padding: 0; margin: 0; list-style: none; }
+.beats li {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 12px; padding: 22px 22px 24px; position: relative;
+}
+.beats li::after {
+  content: ""; position: absolute; left: 22px; right: 22px; top: 0;
+  height: 2px; background: var(--lime); border-radius: 0 0 2px 2px;
+}
+.beats .n { font: 700 .72rem/1 var(--mono); letter-spacing: .16em; color: var(--lime); }
+.beats b { display: block; color: var(--title); margin: .7em 0 .3em; font-size: 1.02rem; }
+
+/* ── Shots ────────────────────────────────────────────────────────────────── */
+.shots { display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; }
+.shots figure { margin: 0; }
+.shots img { width: 270px; border: 1px solid var(--line); border-radius: 12px; display: block; }
+.shots figcaption { color: var(--quiet); font-size: .8rem; margin-top: .7em; text-align: center; }
+
+/* ── Table ────────────────────────────────────────────────────────────────── */
+.table-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .93rem; min-width: 560px; }
+th, td { text-align: left; padding: 13px 14px; border-bottom: 1px solid var(--line); }
+th { color: var(--muted); font-weight: 600; font-size: .82rem; letter-spacing: .04em; text-transform: uppercase; }
+td:first-child { color: var(--muted); }
+th:nth-child(2), td:nth-child(2) { color: var(--title); font-weight: 600; background: rgba(171,219,37,.05); }
+th:nth-child(2) { color: var(--lime); }
+
+/* ── Code, cards, steps ───────────────────────────────────────────────────── */
+pre {
+  background: var(--panel); border: 1px solid var(--line);
+  border-left: 3px solid var(--lime);
+  border-radius: 8px; padding: 15px 18px; overflow-x: auto;
+  font: .88rem/1.6 var(--mono); color: var(--title);
+}
+code { font-family: var(--mono); font-size: .92em; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 8px 26px 24px; }
+.card img { border: 1px solid var(--line); border-radius: 8px; display: block; width: 100%; }
+.note { margin: 1.3em 0 0; font-size: .87rem; color: var(--muted); padding-left: 15px; border-left: 3px solid var(--lime); }
+
+.steps { counter-reset: s; list-style: none; padding: 0; margin: 1.2em 0 0; }
+.steps > li { counter-increment: s; position: relative; padding-left: 44px; margin-bottom: 26px; }
+.steps > li::before {
+  content: counter(s); position: absolute; left: 0; top: -2px;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--lime); color: var(--ink);
+  font: 700 .85rem/28px var(--mono); text-align: center;
+}
+.steps strong { color: var(--title); }
+kbd {
+  font: .82em var(--mono); background: var(--panel-2); border: 1px solid var(--line-hi);
+  border-bottom-width: 2px; border-radius: 5px; padding: 2px 7px; color: var(--title); white-space: nowrap;
+}
+
+/* ── FAQ ──────────────────────────────────────────────────────────────────── */
+details { border-bottom: 1px solid var(--line); }
+details summary {
+  cursor: pointer; list-style: none; padding: 17px 30px 17px 0; position: relative;
+  color: var(--title); font-weight: 600;
+}
+details summary::-webkit-details-marker { display: none; }
+details summary::after {
+  content: "+"; position: absolute; right: 4px; top: 15px;
+  color: var(--lime); font: 400 1.3rem/1 var(--mono);
+}
+details[open] summary::after { content: "\2212"; }
+details p { margin: 0 0 18px; max-width: 62em; }
+
+footer { border-top: 1px solid var(--line); padding: 40px 0 60px; color: var(--quiet); font-size: .88rem; text-align: center; }
 </style>
 </head>
 <body>
-<div class="wrap">
 
-<header>
-  <img class="mark" src="logo.png" alt="Dictation Tool logo">
-  <h1>Dictation Tool</h1>
-  <p class="tagline">
-    Hold a key, speak, and it types for you — into any app on your computer.
-    Works with no internet. Free.
-  </p>
-  <a class="cta" href="https://github.com/bryramirezp/dictation-tool/releases/latest/download/DictationTool-Setup.exe">Download for Windows</a>
-  <p class="cta-note">
-    68 MB · Windows 10 and 11 · nothing else to install<br>
-    <a href="https://github.com/bryramirezp/dictation-tool/releases/latest">All files and release notes</a>
-    · <a href="#winget">install with winget instead</a>
-  </p>
+<div class="topbar" id="topbar">
+  <div class="wrap">
+    <img src="logo.png" alt=""><b>Dictation Tool</b>
+    <span class="grow"></span>
+    <a class="btn" href="https://github.com/bryramirezp/dictation-tool/releases/latest/download/DictationTool-Setup.exe">Download</a>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <img class="mark" src="logo.png" alt="Dictation Tool logo">
+    <h1>Speak.<br>It <span class="lime">types</span>.</h1>
+    <p class="lede">
+      Hold a key, say it out loud, let go. Your words land in whatever app you
+      are using. No internet, no account, no subscription.
+    </p>
+    <a class="btn" id="heroBtn" href="https://github.com/bryramirezp/dictation-tool/releases/latest/download/DictationTool-Setup.exe">Download for Windows</a>
+    <p class="sub">
+      68 MB · Windows 10 and 11 · nothing else to install<br>
+      <a href="https://github.com/bryramirezp/dictation-tool/releases/latest">All files and release notes</a>
+      · <a href="#winget">install with winget instead</a>
+    </p>
+
+    <div class="demo">
+      <div class="stage" id="stage">
+        <div class="stage-bar">
+          <span class="dot" id="dot"></span>
+          <span id="stageTitle">Any app you are typing in</span>
+        </div>
+        <div class="stage-body">
+          <p class="typed"><span id="typed"></span><span class="caret"></span></p>
+        </div>
+        <div class="stage-foot">
+          <span class="keycap">INSERT</span>
+          <span class="wave" id="wave" aria-hidden="true"></span>
+          <span class="phase" id="phase">READY</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="proof">
+      <div><b>0</b><span>bytes leave your PC</span></div>
+      <div><b>0</b><span>accounts to make</span></div>
+      <div><b>6</b><span>languages</span></div>
+      <div><b>$0</b><span>forever, MIT</span></div>
+    </div>
+  </div>
 </header>
 
-<div class="shots">
-  <img src="screenshot-main-dark.png" alt="The Dictation Tool window showing text that was just dictated">
-  <img src="screenshot-settings-light.png" alt="The settings panel with appearance, hotkey and microphone options">
-</div>
+<section>
+  <div class="wrap narrow">
+    <p class="eyebrow">How it works</p>
+    <h2>Three things, and none of them is learning commands</h2>
+    <ol class="beats" style="margin-top:2em">
+      <li><span class="n">HOLD</span><b>Press the key</b>Hold <kbd>Insert</kbd>. The microphone opens only now, and closes the moment you let go.</li>
+      <li><span class="n">SPEAK</span><b>Say it out loud</b>Talk normally. Nothing to memorise, no wake word.</li>
+      <li><span class="n">RELEASE</span><b>Let go</b>A second later the text is typed where your cursor was.</li>
+    </ol>
+    <p style="margin-top:2em">
+      The speech recognition runs on your own computer using
+      <a href="https://github.com/SYSTRAN/faster-whisper">Whisper</a>. Your voice
+      is never uploaded. You can pull out the network cable and it still works.
+    </p>
+  </div>
+</section>
 
-<h2>How it works</h2>
-<ol class="beats">
-  <li><span class="n">HOLD</span><b>Press the key</b>Hold <kbd>Insert</kbd>. The microphone opens only now.</li>
-  <li><span class="n">SPEAK</span><b>Say it out loud</b>Talk normally. No commands to memorise.</li>
-  <li><span class="n">RELEASE</span><b>Let go</b>Your words are typed where the cursor is.</li>
-</ol>
-<p style="margin-top:1.4em">
-  The speech recognition runs on your own computer using
-  <a href="https://github.com/SYSTRAN/faster-whisper">Whisper</a>. Your voice is
-  never uploaded. You can pull out the network cable and it still works.
-</p>
+<section>
+  <div class="wrap">
+    <div class="narrow"><p class="eyebrow">What it looks like</p>
+    <h2>A small window that stays out of the way</h2></div>
+    <div class="shots" style="margin-top:2.4em">
+      <figure>
+        <img src="screenshot-main-dark.png" alt="The Dictation Tool window showing text that was just dictated">
+        <figcaption>What you said, kept in view</figcaption>
+      </figure>
+      <figure>
+        <img src="screenshot-settings-light.png" alt="The settings panel with appearance, hotkey and microphone options">
+        <figcaption>Settings, including a light theme</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
 
-<h2>How it compares</h2>
-<div class="table-scroll">
-<table>
-  <thead>
-    <tr><th></th><th>Dictation Tool</th><th>Windows Voice Typing</th><th>Dragon</th><th>Otter.ai</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Price</td><td>Free</td><td>Free</td><td>Paid</td><td>Free tier, then paid</td></tr>
-    <tr><td>Works offline</td><td>Yes</td><td>No</td><td>Yes</td><td>No</td></tr>
-    <tr><td>Needs an account</td><td>No</td><td>No</td><td>Yes</td><td>Yes</td></tr>
-    <tr><td>Types into any app</td><td>Yes</td><td>Yes</td><td>Yes</td><td>No</td></tr>
-    <tr><td>Voice commands</td><td>No</td><td>Some</td><td>Yes</td><td>No</td></tr>
-    <tr><td>Open source</td><td>Yes</td><td>No</td><td>No</td><td>No</td></tr>
-  </tbody>
-</table>
-</div>
-<p style="color:var(--muted);font-size:.9rem">
-  Honest note: Dragon is bought mostly for controlling a computer by voice, and
-  this does not do that. It dictates text, and it does that part for free and
-  without a connection.
-</p>
+<section>
+  <div class="wrap">
+    <div class="narrow"><p class="eyebrow">How it compares</p>
+    <h2>Where it wins, and where it does not</h2></div>
+    <div class="table-scroll" style="margin-top:2.2em">
+    <table>
+      <thead>
+        <tr><th></th><th>Dictation Tool</th><th>Windows Voice Typing</th><th>Dragon</th><th>Otter.ai</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Price</td><td>Free</td><td>Free</td><td>Paid</td><td>Free tier, then paid</td></tr>
+        <tr><td>Works offline</td><td>Yes</td><td>No</td><td>Yes</td><td>No</td></tr>
+        <tr><td>Needs an account</td><td>No</td><td>No</td><td>Yes</td><td>Yes</td></tr>
+        <tr><td>Types into any app</td><td>Yes</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+        <tr><td>Voice commands</td><td>No</td><td>Some</td><td>Yes</td><td>No</td></tr>
+        <tr><td>Open source</td><td>Yes</td><td>No</td><td>No</td><td>No</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="narrow" style="color:var(--muted);font-size:.9rem;margin-top:1.4em">
+      Dragon is bought mostly for controlling a computer by voice, and this does
+      not do that. It dictates text, and it does that part for free and without
+      a connection.
+    </p>
+  </div>
+</section>
 
-<h2>Getting it</h2>
-<p>
-  <a href="https://github.com/bryramirezp/dictation-tool/releases/latest/download/DictationTool-Setup.exe">Download the installer</a>
-  and run it. It installs for you only, so Windows never asks for an
-  administrator password, and it offers to start with Windows if you want that.
-</p>
-<p>
-  The installer is not signed, so Windows may show a blue box saying "Windows
-  protected your PC". Click <strong>More info</strong>, then <strong>Run
-  anyway</strong>. Signing a program costs money every year, which is a lot for
-  a free tool.
-</p>
-<p>
-  The first time you open it, it downloads the speech model — about 460 MB, once.
-  After that it never needs the internet again.
-</p>
+<section>
+  <div class="wrap narrow">
+    <p class="eyebrow">Getting it</p>
+    <h2>Download and run. That is the whole setup.</h2>
+    <p style="margin-top:1.6em">
+      <a class="btn" href="https://github.com/bryramirezp/dictation-tool/releases/latest/download/DictationTool-Setup.exe">Download the installer</a>
+    </p>
+    <p>
+      It installs for you only, so Windows never asks for an administrator
+      password, and it offers to start with Windows if you want that.
+    </p>
+    <p>
+      The installer is not signed, so Windows may show a blue box saying "Windows
+      protected your PC". Click <strong>More info</strong>, then <strong>Run
+      anyway</strong>. Signing a program costs money every year, which is a lot
+      for a free tool.
+    </p>
+    <p>
+      The first time you open it, it downloads the speech model — about 460 MB,
+      once. After that it never needs the internet again.
+    </p>
 
-<h3 id="winget">Or install with winget</h3>
-<div class="card">
-  <ol class="steps">
-    <li>
-      <strong>Open a terminal.</strong>
-      Press <kbd>Win</kbd> + <kbd>X</kbd> and choose <strong>Terminal</strong>.
-      No administrator rights needed.
-    </li>
-    <li>
-      <strong>Type this and press <kbd>Enter</kbd>.</strong>
-      <pre>winget install bryramirezp.DictationTool</pre>
-      <img src="winget-command.png" alt="A PowerShell window with the command typed in, ready to run">
-    </li>
-    <li>
-      <strong>Wait for the prompt to come back.</strong>
-      winget downloads the installer, checks it against a known fingerprint and
-      runs it. The app lands in your Start menu.
-    </li>
-  </ol>
-  <p class="note">
-    Not live yet. The package is waiting for Microsoft to merge it into the
-    winget catalogue
-    (<a href="https://github.com/microsoft/winget-pkgs/pull/417700">pull request 417700</a>),
-    which usually takes a few days. Until then the command says "No package
-    found matching input criteria" — use the download button above.
-  </p>
-</div>
+    <h3 id="winget">Or install with winget</h3>
+    <div class="card">
+      <ol class="steps">
+        <li><strong>Open a terminal.</strong> Press <kbd>Win</kbd> + <kbd>X</kbd> and choose <strong>Terminal</strong>. No administrator rights needed.</li>
+        <li><strong>Type this and press <kbd>Enter</kbd>.</strong>
+          <pre>winget install bryramirezp.DictationTool</pre>
+          <img src="winget-command.png" alt="A PowerShell window with the command typed in, ready to run">
+        </li>
+        <li><strong>Wait for the prompt to come back.</strong> winget downloads the installer, checks it against a known fingerprint and runs it. The app lands in your Start menu.</li>
+      </ol>
+      <p class="note">
+        Not live yet. The package is waiting for Microsoft to merge it into the
+        winget catalogue
+        (<a href="https://github.com/microsoft/winget-pkgs/pull/417700">pull request 417700</a>),
+        which usually takes a few days. Until then the command says "No package
+        found matching input criteria" — use the download button above.
+      </p>
+    </div>
 
-<h3>Using a graphics card</h3>
-<p>
-  The download runs on your processor. If you have an NVIDIA card and want it
-  much faster, run it from the source code instead:
-</p>
+    <h3>Using a graphics card</h3>
+    <p>
+      The download runs on your processor. If you have an NVIDIA card and want it
+      much faster, run it from the source code instead:
+    </p>
 <pre>git clone https://github.com/bryramirezp/dictation-tool.git
 cd dictation-tool
 py -3 -m pip install -r requirements.txt nvidia-cublas-cu12
 launch.bat</pre>
+  </div>
+</section>
 
-<h2>Questions</h2>
-
-<h3>Does it work offline?</h3>
-<p>
-  Yes. The first run downloads the speech model, about 460 MB. After that it
-  never needs the internet again, and your voice is processed entirely on your
-  own machine.
-</p>
-
-<h3>Is it free?</h3>
-<p>
-  Yes, and it is open source under the MIT license. No account, no subscription,
-  no paid tier, no trial that runs out.
-</p>
-
-<h3>Is this a free alternative to Dragon NaturallySpeaking?</h3>
-<p>
-  For dictation, yes. You hold a key, speak, and the text is typed for you. It
-  does not replace Dragon's voice commands for driving Windows by voice.
-</p>
-
-<h3>How is it different from Windows Voice Typing (Win+H)?</h3>
-<p>
-  Windows Voice Typing sends your audio to Microsoft and needs a connection.
-  This runs the model locally, works with no connection at all, and lets you
-  pick a larger and more accurate model than the built-in one.
-</p>
-
-<h3>Which languages does it support?</h3>
-<p>
-  Spanish, English, Portuguese, French, German and Italian. You choose one
-  rather than letting it guess, which makes it faster and stops it from getting
-  the language wrong on short recordings.
-</p>
-
-<h3>Do I need a graphics card?</h3>
-<p>
-  No. The download runs on your processor. If you have an NVIDIA card and
-  install from the source code, it can use it and get much faster.
-</p>
-
-<h3>Is my voice sent anywhere?</h3>
-<p>
-  No. Nothing leaves your computer. The microphone is only open while you hold
-  the key, so nothing is listening the rest of the time.
-</p>
-
-<h3>Which key does it use?</h3>
-<p>
-  <kbd>Insert</kbd> by default, and you can change it to any key or an extra
-  mouse button. Avoid normal letters: the key is not blocked, so choosing
-  <code>q</code> would start a recording every time you typed one.
-</p>
+<section>
+  <div class="wrap narrow">
+    <p class="eyebrow">Questions</p>
+    <h2>The ones people actually ask</h2>
+    <div style="margin-top:2em">
+      <details open>
+        <summary>Does it work offline?</summary>
+        <p>Yes. The first run downloads the speech model, about 460 MB. After that it never needs the internet again, and your voice is processed entirely on your own machine.</p>
+      </details>
+      <details>
+        <summary>Is it free?</summary>
+        <p>Yes, and it is open source under the MIT license. No account, no subscription, no paid tier, no trial that runs out.</p>
+      </details>
+      <details>
+        <summary>Is this a free alternative to Dragon NaturallySpeaking?</summary>
+        <p>For dictation, yes. You hold a key, speak, and the text is typed for you. It does not replace Dragon's voice commands for driving Windows by voice.</p>
+      </details>
+      <details>
+        <summary>How is it different from Windows Voice Typing (Win+H)?</summary>
+        <p>Windows Voice Typing sends your audio to Microsoft and needs a connection. This runs the model locally, works with no connection at all, and lets you pick a larger and more accurate model than the built-in one.</p>
+      </details>
+      <details>
+        <summary>Which languages does it support?</summary>
+        <p>Spanish, English, Portuguese, French, German and Italian. You choose one rather than letting it guess, which makes it faster and stops it from getting the language wrong on short recordings.</p>
+      </details>
+      <details>
+        <summary>Do I need a graphics card?</summary>
+        <p>No. The download runs on your processor. If you have an NVIDIA card and install from the source code, it can use it and get much faster.</p>
+      </details>
+      <details>
+        <summary>Is my voice sent anywhere?</summary>
+        <p>No. Nothing leaves your computer. The microphone is only open while you hold the key, so nothing is listening the rest of the time.</p>
+      </details>
+      <details>
+        <summary>Which key does it use?</summary>
+        <p><kbd>Insert</kbd> by default, and you can change it to any key or an extra mouse button. Avoid normal letters: the key is not blocked, so choosing <code>q</code> would start a recording every time you typed one.</p>
+      </details>
+    </div>
+  </div>
+</section>
 
 <footer>
-  <a href="https://github.com/bryramirezp/dictation-tool">Source on GitHub</a> ·
-  MIT licensed · Made by <a href="https://github.com/bryramirezp">bryramirezp</a>
+  <div class="wrap">
+    <a href="https://github.com/bryramirezp/dictation-tool">Source on GitHub</a> ·
+    MIT licensed · Made by <a href="https://github.com/bryramirezp">bryramirezp</a>
+  </div>
 </footer>
 
-</div>
+<script>
+(function () {
+  // Twenty-four bars for the level meter, built here so the markup stays clean.
+  var wave = document.getElementById('wave');
+  for (var i = 0; i < 24; i++) {
+    var bar = document.createElement('i');
+    bar.style.animationDelay = (i * 0.045).toFixed(3) + 's';
+    wave.appendChild(bar);
+  }
+
+  var stage  = document.getElementById('stage');
+  var out    = document.getElementById('typed');
+  var phase  = document.getElementById('phase');
+  var dot    = document.getElementById('dot');
+  var lines  = [
+    'Send me the report before Friday, please.',
+    "I'll call you back in about ten minutes.",
+    'Remember to buy coffee on the way home.'
+  ];
+  var n = 0;
+
+  var still = window.matchMedia('(prefers-reduced-motion: reduce)');
+  if (still.matches) {                    // no looping animation; show the point
+    out.textContent = lines[0];
+    phase.textContent = 'TYPED';
+    return;
+  }
+
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  async function cycle() {
+    for (;;) {
+      out.textContent = '';
+      phase.textContent = 'READY';
+      dot.classList.remove('live');
+      await wait(900);
+
+      stage.classList.add('rec');          // key held: the meter comes alive
+      phase.textContent = 'LISTENING';
+      dot.classList.add('live');
+      await wait(1900);
+
+      stage.classList.remove('rec');
+      phase.textContent = 'WRITING';
+      await wait(420);
+
+      var text = lines[n % lines.length];
+      n++;
+      for (var i = 1; i <= text.length; i++) {
+        out.textContent = text.slice(0, i);
+        await wait(26);
+      }
+      phase.textContent = 'TYPED';
+      dot.classList.remove('live');
+      await wait(2600);
+    }
+  }
+  cycle();
+
+  // The sticky bar only earns its place once the hero button has scrolled away.
+  var bar = document.getElementById('topbar');
+  var btn = document.getElementById('heroBtn');
+  new IntersectionObserver(function (entries) {
+    bar.classList.toggle('show', !entries[0].isIntersecting);
+  }, { rootMargin: '-10px 0px 0px 0px' }).observe(btn);
+})();
+</script>
+
 </body>
 </html>
