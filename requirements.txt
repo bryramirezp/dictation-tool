@@ -1,14 +1,16 @@
-numpy
-sounddevice
-faster-whisper
-pyperclip
-pyautogui
-pystray
-customtkinter
-pillow
-pynput
-psutil
+numpy>=2.0
+sounddevice>=0.5
+faster-whisper>=1.2
+pyperclip>=1.9
+pyautogui>=0.9.54
+pystray>=0.19
+customtkinter>=5.2
+pillow>=10.0
+pynput>=1.7
+psutil>=5.9
 
-# Optional — only needed for NVIDIA GPU acceleration:
+# Optional - only needed for NVIDIA GPU acceleration.
+# Both are required: cuBLAS alone is not enough, and the CUDA Toolkit you may
+# already have installed system-wide is not used.
 # nvidia-cublas-cu12
 # nvidia-cudnn-cu12

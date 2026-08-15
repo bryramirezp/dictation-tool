@@ -1,6 +1,12 @@
 # Local state, not source
 settings.json
 
+# Build output
+build/
+dist/
+Output/
+*.manifest
+
 # Python
 __pycache__/
 *.py[cod]

@@ -1,68 +1,123 @@
+<div align="center">
+
+<img src="docs/logo.png" alt="" width="128">
+
 # Dictation Tool
 
-Push-to-talk voice dictation for Windows, powered by [faster-whisper](https://github.com/SYSTRAN/faster-whisper).
-Hold a hotkey, speak, release — the transcription is pasted into whatever app has focus.
+**Hold a key, speak, and it types for you.**
 
-Runs fully offline. No audio ever leaves your machine.
+Free, open source, and it works without internet.
 
-## Features
+<img src="docs/screenshot-main-dark.png" alt="The main window" width="300">
 
-- **Push-to-talk** with any keyboard key or mouse button (default: `Insert`)
-- **Microphone selection** — pick a specific input device or use the system default; devices are resolved fresh on every recording, so plugging/unplugging headsets or controllers just works
-- **Language** — always explicit (Spanish, English, Portuguese, French, German, Italian). There is
-  no auto-detect on purpose: it costs a detection pass on every recording and gets it wrong on
-  short clips
-- **Hardware aware** — auto-picks model and precision based on GPU/VRAM, with manual override (CPU int8 / CUDA float16)
-- **Light and dark theme**, switchable from Settings
-- **Minimal always-on-top UI** + system tray icon with recording indicator
-- Mic is only open while you hold the hotkey (privacy + battery friendly)
+</div>
 
-## Requirements
+## What it does
 
-- Windows 10/11
-- Python 3.10+
-- Optional: NVIDIA GPU with CUDA for fast transcription with the large model
+You hold down a key. You talk. You let go. A moment later your words appear in
+whatever app you were using — your browser, Word, a chat, anywhere you can type.
 
-## Install
+It uses [faster-whisper](https://github.com/SYSTRAN/faster-whisper) to turn speech
+into text. Everything happens on your own computer. Your voice is never sent
+anywhere, and you can unplug the internet and it still works.
+
+## Download
+
+**[Download the installer](https://github.com/bryramirezp/dictation-tool/releases/latest)**
+— for Windows 10 and 11.
+
+Run it and you are done. You do not need to install Python or anything else.
+
+> The installer is not signed, so Windows may show a blue box that says
+> "Windows protected your PC". Click **More info**, then **Run anyway**.
+> Signing costs money every year, which is a lot for a free tool.
+
+The first time you open the app it downloads the speech model, about 460 MB.
+This happens once. After that it works offline.
+
+## How to use it
+
+1. Hold **Insert** and speak.
+2. Let go. Your words are typed where your cursor is.
+3. Click the **⚙** button to change anything.
+
+The app hides near the clock. Click that icon to bring it back.
+
+To start it with Windows, tick the box during install. If you missed it, press
+`Win+R`, type `shell:startup`, and drop a shortcut to the app in that folder.
+
+## Settings
+
+<img src="docs/screenshot-settings-light.png" alt="The settings panel" width="300">
+
+| Setting | What it is for |
+|---|---|
+| **Appearance** | Light or dark. Changes right away. |
+| **Hotkey** | The key you hold to record. Extra mouse buttons work too. |
+| **Microphone** | Leave it on auto unless you have several and want a specific one. |
+| **Language** | Pick the one you speak. This makes the app faster and more accurate. |
+| **Device** | Your processor, or your graphics card if you have an NVIDIA one. |
+| **Model** | Bigger models are more accurate but slower. |
+
+### About the hotkey
+
+Do not pick a normal letter or number. The app does not block the key, so if you
+choose `q`, every `q` you type will start a recording. Good choices are `Insert`,
+the `F13`–`F24` keys, or a side button on your mouse.
+
+## Using a graphics card
+
+The installer runs on your processor only. That works, but a large model will be
+slow. If you have an NVIDIA graphics card and want the fast version, run it from
+the source code instead:
 
 ```bat
-pip install -r requirements.txt
-```
-
-For NVIDIA GPU acceleration also install:
-
-```bat
-pip install nvidia-cublas-cu12 nvidia-cudnn-cu12
-```
-
-## Run
-
-```bat
+git clone https://github.com/bryramirezp/dictation-tool.git
+cd dictation-tool
+py -3 -m pip install -r requirements.txt
+py -3 -m pip install nvidia-cublas-cu12 nvidia-cudnn-cu12
 launch.bat
 ```
 
-or silently (no console window):
+You need **both** NVIDIA packages. Installing only one will not work. The CUDA
+Toolkit you may already have on your computer is not used, so do not worry about
+which version it is.
+
+## Running from source
+
+You need Python 3.10 or newer from [python.org](https://www.python.org/downloads/).
+Tick "Add python.exe to PATH" while installing it.
 
 ```bat
-wscript launch.vbs
+py -3 -m pip install -r requirements.txt
+launch.bat
 ```
 
-First run downloads the Whisper model (~1.6 GB for large-v3-turbo, ~460 MB for small).
+`launch.bat` starts the app with no window. To see errors while you work on it,
+run `py -3 dictation_tool.py` instead.
 
-To start automatically with Windows, put a shortcut to `launch.vbs` in
-`shell:startup` (Win+R → `shell:startup`).
+If you keep your packages in one specific Python, tell the launcher which one:
 
-## Usage
+```bat
+setx DICTATION_PYTHON "C:\Path\To\pythonw.exe"
+```
 
-1. Hold the hotkey (default `Insert`) and speak.
-2. Release. The text is transcribed and pasted at the cursor via Ctrl+V.
-3. Click ⚙ to change hotkey, microphone, language, device, model, or theme.
+Your settings live in `%LOCALAPPDATA%\DictationTool\settings.json`.
 
-Settings are stored in `%LOCALAPPDATA%\DictationTool\settings.json`.
+To rebuild the icons after changing the drawing in the app:
 
-## Notes
+```bat
+py -3 tools/make_logo.py
+```
 
-- The hotkey is *not* suppressed system-wide: if you bind a character key, that
-  character will still reach the focused app while you hold it. Prefer keys like
-  `Insert`, `F13+`, or extra mouse buttons.
-- Paste works via clipboard (contents are restored ~0.3 s after pasting).
+## Your privacy
+
+- Your voice never leaves your computer.
+- The microphone is only on while you hold the key. The rest of the time it is
+  closed, so nothing is listening.
+- The text is pasted with the clipboard, and whatever you had copied before is
+  put back afterwards.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

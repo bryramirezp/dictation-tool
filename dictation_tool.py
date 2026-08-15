@@ -376,20 +376,48 @@ def resolve_config(settings):
     return device, compute, model
 
 # ── Tray icons ────────────────────────────────────────────────────────────────
-def _make_tray_icon(rec=False):
-    SIZE = 64
-    img  = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+def _make_tray_icon(rec=False, size=64, detail=None):
+    """The app mark: a microphone on a dark disc.
+
+    Every coordinate is a fraction of the side, so this one drawing serves both
+    the 16px tray icon and the 1024px logo (see tools/make_logo.py). Drawn at 4x
+    and scaled down because Pillow's shapes are aliased -- at 16px the edge of
+    the disc comes out visibly ragged otherwise.
+
+    Below 40px the stand is dropped and the capsule grows to fill the space.
+    Kept at full detail, the arc and the stand are about one pixel each and
+    smear into the disc, which reads as a blur rather than as a microphone.
+    """
+    if detail is None:
+        detail = size >= 40
+    ss  = 4
+    s   = size * ss
+    end = s - 1
+    img  = Image.new("RGBA", (s, s), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
-    bg   = (50, 14, 14) if rec else (28, 28, 28)
-    draw.ellipse([0, 0, SIZE - 1, SIZE - 1], fill=bg)
-    mc = (220, 40, 40) if rec else (175, 175, 175)
-    sc = (190, 55, 55) if rec else (130, 130, 130)
-    draw.rounded_rectangle([22, 7, 42, 36], radius=10, fill=mc)
-    draw.arc([12, 23, 52, 46], start=0, end=180, fill=sc, width=3)
-    cx = SIZE // 2
-    draw.line([cx, 46, cx, 56], fill=sc, width=3)
-    draw.line([cx - 8, 56, cx + 8, 56], fill=sc, width=3)
-    return img
+
+    def px(*fractions):
+        return [round(f * end) for f in fractions]
+
+    bg     = (50, 14, 14)  if rec else (28, 28, 28)
+    mc     = (220, 40, 40) if rec else (175, 175, 175)
+    sc     = (190, 55, 55) if rec else (130, 130, 130)
+    stroke = max(1, round(0.047 * s))
+
+    draw.ellipse(px(0, 0, 1, 1), fill=bg)
+
+    if detail:
+        draw.rounded_rectangle(px(0.344, 0.109, 0.656, 0.563),
+                               radius=0.156 * end, fill=mc)
+        draw.arc(px(0.188, 0.359, 0.813, 0.719), start=0, end=180,
+                 fill=sc, width=stroke)
+        draw.line(px(0.5, 0.719, 0.5, 0.875),     fill=sc, width=stroke)
+        draw.line(px(0.375, 0.875, 0.625, 0.875), fill=sc, width=stroke)
+    else:
+        draw.rounded_rectangle(px(0.30, 0.16, 0.70, 0.84),
+                               radius=0.20 * end, fill=mc)
+
+    return img.resize((size, size), Image.LANCZOS)
 
 TRAY_IDLE = _make_tray_icon(False)
 TRAY_REC  = _make_tray_icon(True)
