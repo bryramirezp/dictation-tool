@@ -5,7 +5,7 @@ Hold the configured hotkey to record. Release to transcribe and paste.
 Default hotkey: Insert
 """
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 
 import sys
 import os
@@ -98,9 +98,22 @@ def cuda_libs_present():
 
 _add_nvidia_dlls()
 
+# ── Model cache layout ────────────────────────────────────────────────────────
+# Some huggingface_hub versions fill snapshots/ with symlinks pointing into
+# blobs/. ctranslate2 could not open model.bin through those on at least one
+# machine -- it failed with "Unable to open file 'model.bin'" while the bytes
+# sat there in blobs/, intact (issue #1). Real files cost the same disk space
+# here, because nothing else on the machine shares this cache.
+#
+# Set before faster_whisper is imported: huggingface_hub reads it at import.
+# Versions that predate the variable ignore it, which is why the check below
+# does not trust it on its own.
+os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS", "1")
+
 import numpy as np
 import sounddevice as sd
 from faster_whisper import WhisperModel
+from faster_whisper.utils import download_model
 import pyperclip
 import pyautogui
 import pystray
@@ -554,6 +567,11 @@ recording          = False
 audio_frames       = []
 model_obj          = None
 model_lock         = threading.Lock()
+# "loading" | "ready" | "error". Kept apart from model_obj on purpose: while a
+# new model loads after a settings change the old object is still there, so
+# "model_obj is not None" would answer yes to "can we record now?".
+model_state        = "loading"
+model_error_msg    = ""
 tray_icon          = None
 app_gui            = None
 status_lock        = threading.Lock()
@@ -569,10 +587,87 @@ _current_hotkey_str = "key:insert"   # updated from settings at startup / apply
 _trigger_down       = False           # tracks press state regardless of kind
 _capturing_hotkey   = False           # True while waiting for capture input
 _capture_queue      = queue.Queue()   # receives "kind:name" string from listeners
+_last_not_ready_log = 0.0             # rate limit for the "not ready yet" notice
 
 # ── Model loader ──────────────────────────────────────────────────────────────
+def model_is_ready():
+    with model_lock:
+        return model_state == "ready"
+
+
+def _hf_cache_dir():
+    return os.environ.get("HF_HUB_CACHE") or os.path.join(
+        os.path.expanduser("~"), ".cache", "huggingface", "hub")
+
+
+def _snapshot_is_readable(path):
+    """True when every file ctranslate2 will open can really be read.
+
+    os.path.exists is not enough. The download that started issue #1 left
+    symlinks in snapshots/ that pointed at blobs the loader could not follow:
+    the names were all there, and opening model.bin still failed. So open each
+    one and read a byte, which is the same thing ctranslate2 does.
+    """
+    try:
+        entries = os.listdir(path)
+    except OSError:
+        return False
+
+    # vocabulary is .txt on some models and .json on others, hence the prefix.
+    vocabulary = [e for e in entries if e.startswith("vocabulary.")]
+    if not vocabulary:
+        return False
+
+    for name in ["model.bin", "config.json", "tokenizer.json"] + vocabulary:
+        try:
+            with open(os.path.join(path, name), "rb") as f:
+                if not f.read(1):     # a zero-byte file opens fine and is useless
+                    return False
+        except OSError:
+            return False
+    return True
+
+
+def ensure_model_files(model_size):
+    """Return a model directory ctranslate2 can open, repairing the cache once.
+
+    Reuses faster_whisper's own downloader so the repo id, the file list and the
+    cache location stay whatever that library decided -- there is no second copy
+    of that mapping to keep in step here.
+    """
+    # A path the user pointed at is theirs; download and repair are not ours to do.
+    if os.path.isdir(model_size):
+        return model_size
+
+    path = download_model(model_size)
+    if _snapshot_is_readable(path):
+        return path
+
+    # snapshots/<revision>/ up to models--<org>--<name>/. Deleting only the
+    # snapshot would re-link the same unreadable blobs, so the whole repo
+    # folder goes and the download starts over.
+    repo_dir = os.path.dirname(os.path.dirname(path))
+    if os.path.basename(repo_dir).startswith("models--"):
+        ui_queue.put(("log", "The downloaded model files can't be read. "
+                             "Getting them again.", "dim"))
+        shutil.rmtree(repo_dir, ignore_errors=True)
+        path = download_model(model_size)
+        if _snapshot_is_readable(path):
+            return path
+
+    raise RuntimeError(_unreadable_model_msg(repo_dir))
+
+
+def _unreadable_model_msg(where):
+    return ("The model files can't be read, even after downloading them again. "
+            f"Close Kara, delete this folder, and open it again:  {where}")
+
+
 def load_model(device, compute, model_size, on_done=None, on_error=None):
-    global model_obj
+    global model_obj, model_state, model_error_msg
+    with model_lock:
+        model_state = "loading"
+        model_error_msg = ""
     try:
         if device == "cuda" and not cuda_libs_present():
             # Say what to do instead of letting ctranslate2 fail with a DLL name
@@ -587,13 +682,25 @@ def load_model(device, compute, model_size, on_done=None, on_error=None):
                 "Your graphics card is missing some files. Open a terminal and "
                 "run:  pip install nvidia-cublas-cu12  ...or set Device back "
                 "to auto in settings.")
+        # Downloading outside the lock: it can take minutes on a first run, and
+        # holding the lock there would freeze a transcription already in flight.
+        model_path = ensure_model_files(model_size)
         with model_lock:
-            model_obj = WhisperModel(model_size, device=device, compute_type=compute)
+            model_obj = WhisperModel(model_path, device=device, compute_type=compute)
+            model_state = "ready"
         if on_done:
             on_done(device, compute, model_size)
     except Exception as e:
+        text = str(e)
+        # ctranslate2 reports this one as a C++ file error naming a cache path
+        # nobody chose to have. Say what to do about it instead.
+        if "Unable to open file" in text:
+            text = _unreadable_model_msg(_hf_cache_dir())
+        with model_lock:
+            model_state = "error"
+            model_error_msg = text
         if on_error:
-            on_error(str(e))
+            on_error(text)
 
 # ── Audio ─────────────────────────────────────────────────────────────────────
 def audio_callback(indata, frames, time_info, status):
@@ -734,6 +841,29 @@ def _transcribe(audio_data, sr):
         ui_queue.put(("log", f"Something went wrong: {e}", "error"))
         ui_queue.put(("status", _idle_status(), theme_color("status_idle")))
 
+# ── Trigger guard ─────────────────────────────────────────────────────────────
+def _may_record():
+    """False, and one line in the log, while there is no model to transcribe with.
+
+    The check used to live in _transcribe, which meant the key worked, the meter
+    moved, and the refusal only arrived after you had already said your sentence.
+    """
+    global _last_not_ready_log
+    with model_lock:
+        state, err = model_state, model_error_msg
+    if state == "ready":
+        return True
+
+    # Held keys repeat and mice get clicked twice; one notice is the message.
+    now = time.monotonic()
+    if now - _last_not_ready_log > 3.0:
+        _last_not_ready_log = now
+        if state == "error":
+            ui_queue.put(("log", err or "Kara could not get ready.", "error"))
+        else:
+            ui_queue.put(("log", "Still getting ready — hold on a moment.", "dim"))
+    return False
+
 # ── Mouse listener ────────────────────────────────────────────────────────────
 def on_mouse_click(x, y, button, pressed):
     global recording, _trigger_down, _capturing_hotkey
@@ -748,6 +878,8 @@ def on_mouse_click(x, y, button, pressed):
         return
 
     if pressed and not _trigger_down:
+        if not _may_record():
+            return
         _trigger_down = True
         with status_lock:
             recording = True
@@ -776,6 +908,8 @@ def on_key_press(key):
     if key != value:
         return
     if not _trigger_down:
+        if not _may_record():
+            return
         _trigger_down = True
         with status_lock:
             recording = True
@@ -1020,6 +1154,21 @@ class KaraApp(ctk.CTk):
         self._hold_label.pack(side="left")
         ctk.CTkLabel(foot, text="to record", font=("Segoe UI", 9),
                      text_color=t["text_hint"]).pack(side="left", padx=(6, 0))
+        # Rebuilt on every theme switch, so the greyed-out look has to be
+        # re-applied from state rather than set once at startup.
+        self._set_hold_enabled(self._model_is_ready)
+
+    def _set_hold_enabled(self, enabled):
+        """Grey out the keycap while the key does nothing.
+
+        The key is refused until the model is loaded, and a keycap drawn as if
+        it worked is the thing that made that refusal look like a bug.
+        """
+        t = self.theme
+        self._hold_label.configure(
+            text_color=t["text_body"] if enabled else t["text_hint"],
+            fg_color=t["bg_button"] if enabled else "transparent",
+        )
 
     def _build_settings(self):
         t = self.theme
@@ -1373,6 +1522,10 @@ class KaraApp(ctk.CTk):
         ui_queue.put(("log", f"Language: {language_name(new_settings['language'])} · "
                              f"Key: {hotkey_display_name(new_settings['hotkey'])}", "dim"))
         ui_queue.put(("status", "Getting ready...", self.theme["status_reload"]))
+        # The old model is still loaded and would happily transcribe, but with
+        # settings the user has already been told were applied. Off until the
+        # new one is up.
+        ui_queue.put(("model_loading",))
         threading.Thread(target=self._reload_model, daemon=True).start()
 
     def _reload_model(self):
@@ -1380,8 +1533,14 @@ class KaraApp(ctk.CTk):
         load_model(
             device, compute, model_size,
             on_done=lambda d, c, m: ui_queue.put(("model_ready", d, c, m)),
-            on_error=lambda e:      ui_queue.put(("log", f"Could not get ready: {e}", "error")),
+            on_error=self._reload_failed,
         )
+
+    def _reload_failed(self, message):
+        ui_queue.put(("log", f"Could not get ready: {message}", "error"))
+        ui_queue.put(("status", "Something failed. Check settings.",
+                      theme_color("status_error")))
+        ui_queue.put(("model_error",))
 
     # ── UI queue processor ────────────────────────────────────────────────────
     # ── Level meter ───────────────────────────────────────────────────────────
@@ -1456,9 +1615,19 @@ class KaraApp(ctk.CTk):
                     label = f"{m} model  ·  running on your {where}"
                     self._last_model_label = label
                     self._model_is_ready = True
+                    self._set_hold_enabled(True)
                     self._model_info.configure(text=label, text_color=self.theme["model_ready_text"])
                     self._status.configure(text=_idle_status(), text_color=self.theme["status_idle"])
                     self._append_log("Ready to use.", "ok")
+                elif msg[0] == "model_loading":
+                    self._model_is_ready = False
+                    self._set_hold_enabled(False)
+                    self._set_meter("loading")
+                    self._start_meter()
+                elif msg[0] == "model_error":
+                    self._model_is_ready = False
+                    self._set_hold_enabled(False)
+                    self._set_meter("idle")
         except queue.Empty:
             pass
         self.after(80, self._process_ui_queue)
@@ -1539,6 +1708,7 @@ def main():
         ui_queue.put(("log", f"Could not get ready: {e}", "error"))
         ui_queue.put(("status", "Something failed. Check settings.",
                       theme_color("status_error")))
+        ui_queue.put(("model_error",))
 
     threading.Thread(
         target=load_model,
