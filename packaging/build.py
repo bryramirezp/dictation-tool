@@ -107,6 +107,15 @@ def write_hashes(ver, paths):
     return out
 
 
+def stamp_docs():
+    """Write the new version and installer size into the docs that quote them.
+
+    Runs last, because the size is only knowable once the installer exists.
+    """
+    print("== docs ==")
+    run([sys.executable, os.path.join("tools", "stamp_docs.py")])
+
+
 def main():
     ver = version()
     print(f"Kara {ver}\n")
@@ -120,13 +129,14 @@ def main():
     # The alias is byte for byte the versioned file, so one hash covers both.
     write_hashes(ver, [setup, zip_path])
     print(f"  (Kara-Setup.exe is a copy of {os.path.basename(setup)})")
-    return alias
+    stamp_docs()
 
     print("\n== ready ==")
     for name in sorted(os.listdir(DIST)):
         p = os.path.join(DIST, name)
         if os.path.isfile(p):
             print(f"  {name:44s} {os.path.getsize(p)/1024/1024:7.1f} MB")
+    return alias
 
 
 if __name__ == "__main__":

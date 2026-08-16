@@ -50,6 +50,19 @@ jobs:
       - name: Build
         run: python packaging/build.py
 
+      # build.py stamps the version and the installer's size into the README and
+      # the website. If that changed anything, the copies committed to main were
+      # stale and the site would ship numbers from the previous release.
+      - name: Check the docs quote this build
+        shell: pwsh
+        run: |
+          $dirty = git status --porcelain -- README.md docs
+          if ($dirty) {
+            git --no-pager diff -- README.md docs
+            throw "stale numbers in the docs. Run: py -3 packaging/build.py, then commit README.md and docs/"
+          }
+          Write-Host "docs are current"
+
       - name: Keep the build even when nothing is published
         uses: actions/upload-artifact@v4
         with:
