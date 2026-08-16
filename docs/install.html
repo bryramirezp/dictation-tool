@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to install Kara on Windows — step by step</title>
+
+<link rel="canonical" href="https://bryramirezp.github.io/kara/install.html">
+<meta name="description" content="Step by step guide to installing Kara on Windows 10 and 11, including the &quot;Windows protected your PC&quot; warning, what it means, and how to get past it safely.">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+<meta name="theme-color" content="#0f0f0f">
+
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://bryramirezp.github.io/kara/install.html">
+<meta property="og:title" content="How to install Kara on Windows — step by step">
+<meta property="og:description" content="Five steps, start to finish. Including the blue &quot;Windows protected your PC&quot; box and why it appears.">
+<meta property="og:image" content="https://bryramirezp.github.io/kara/social-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="logo.png">
+
+<script>
+// Runs before anything paints, so a returning visitor never sees the wrong
+// theme flash first. Dark is the default; the system preference only decides
+// for someone who has not touched the switch.
+(function () {
+  var saved = null;
+  try { saved = localStorage.getItem('theme'); } catch (e) {}
+  var wantsLight = saved ? saved === 'light'
+                         : window.matchMedia('(prefers-color-scheme: light)').matches;
+  document.documentElement.setAttribute('data-theme', wantsLight ? 'light' : 'dark');
+})();
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "How to install Kara on Windows",
+  "description": "Download and install Kara, a free offline speech to text app for Windows 10 and 11.",
+  "totalTime": "PT5M",
+  "tool": [{ "@type": "HowToTool", "name": "A PC running Windows 10 or 11" }],
+  "step": [
+    { "@type": "HowToStep", "name": "Download the installer",
+      "text": "Download Kara-Setup.exe from the releases page. It is about 68 MB.",
+      "url": "https://bryramirezp.github.io/kara/install.html#download" },
+    { "@type": "HowToStep", "name": "Get past the Windows warning",
+      "text": "Windows shows a blue box saying it protected your PC, because the installer is not signed. Click More info, then Run anyway.",
+      "url": "https://bryramirezp.github.io/kara/install.html#warning" },
+    { "@type": "HowToStep", "name": "Run the installer",
+      "text": "The installer puts Kara in your own user folder, so Windows never asks for an administrator password.",
+      "url": "https://bryramirezp.github.io/kara/install.html#installer" },
+    { "@type": "HowToStep", "name": "Let it download the speech model",
+      "text": "The first time you open Kara it downloads a speech model of about 460 MB. This happens once, and after that it works offline.",
+      "url": "https://bryramirezp.github.io/kara/install.html#firstrun" },
+    { "@type": "HowToStep", "name": "Start dictating",
+      "text": "Hold the Insert key, speak, and let go. Your words are typed wherever your cursor is.",
+      "url": "https://bryramirezp.github.io/kara/install.html#dictate" }
+  ]
+}
+</script>
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="topbar show" id="topbar">
+  <div class="wrap">
+    <a href="index.html" style="display:flex;align-items:center;gap:8px;text-decoration:none">
+      <img src="logo.png" alt=""><b>Kara</b>
+    </a>
+    <nav><a href="install.html" aria-current="page">Install guide</a></nav>
+    <span class="grow"></span>
+    <button class="theme-toggle" data-theme-toggle type="button"></button>
+    <a class="btn" href="https://github.com/bryramirezp/kara/releases/latest/download/Kara-Setup.exe">Download</a>
+  </div>
+</div>
+
+<header class="page-head">
+  <div class="wrap narrow">
+    <p class="crumb"><a href="index.html">&larr; Back to Kara</a></p>
+    <h1>Installing Kara</h1>
+    <p class="lede">
+      Five steps, about five minutes. One of them is a warning from Windows that
+      looks alarming and is not — that is step two, and it is explained in full.
+    </p>
+  </div>
+</header>
+
+<main class="guide">
+
+<section>
+  <div class="wrap narrow">
+    <ol class="steps">
+
+      <!-- ── 1 ──────────────────────────────────────────────────────────── -->
+      <li id="download">
+        <span class="step-title">Download the installer</span>
+        <p>
+          One file, about 68 MB. It works on Windows 10 and Windows 11, 64-bit.
+          You do not need Python or anything else installed first.
+        </p>
+        <div class="dl-row">
+          <a class="btn" href="https://github.com/bryramirezp/kara/releases/latest/download/Kara-Setup.exe">Download Kara-Setup.exe</a>
+          <span class="meta">or pick a version from <a href="https://github.com/bryramirezp/kara/releases/latest">all releases</a></span>
+        </div>
+      </li>
+
+      <!-- ── 2 ──────────────────────────────────────────────────────────── -->
+      <li id="warning">
+        <span class="step-title">Windows will try to stop you. This is expected.</span>
+        <p>
+          When you open the file, Windows shows a blue box. It says it protected
+          your PC and offers only one button: <strong>Don't run</strong>.
+        </p>
+
+        <figure class="shot">
+          <div class="win">
+            <div class="win-bar"><span>Windows protected your PC</span><span class="x">&times;</span></div>
+            <div class="win-body">
+              <h4>Windows protected your PC</h4>
+              <p>
+                Microsoft Defender SmartScreen prevented an unrecognized app from
+                starting. Running this app might put your PC at risk.
+              </p>
+              <p><a class="win-link" href="#warning">More info</a></p>
+            </div>
+            <div class="win-foot">
+              <span class="win-btn">Don't run</span>
+            </div>
+          </div>
+          <figcaption>An illustration of the dialog, not a photograph of one. The wording on your screen may differ slightly by Windows version.</figcaption>
+        </figure>
+
+        <p style="margin-top:1.6em">
+          Click the small <strong>More info</strong> link. A second button
+          appears — <strong>Run anyway</strong> — and that is the one you want.
+        </p>
+
+        <figure class="shot">
+          <div class="win">
+            <div class="win-bar"><span>Windows protected your PC</span><span class="x">&times;</span></div>
+            <div class="win-body">
+              <h4>Windows protected your PC</h4>
+              <p>
+                Microsoft Defender SmartScreen prevented an unrecognized app from
+                starting. Running this app might put your PC at risk.
+              </p>
+              <p class="win-meta">
+                App:&nbsp; <b>Kara-Setup.exe</b><br>
+                Publisher:&nbsp; <b>Unknown publisher</b>
+              </p>
+            </div>
+            <div class="win-foot">
+              <span class="win-btn go">Run anyway</span>
+              <span class="win-btn">Don't run</span>
+            </div>
+          </div>
+          <figcaption>After clicking <strong>More info</strong>. Press <strong>Run anyway</strong>.</figcaption>
+        </figure>
+
+        <div class="callout">
+          <p><b>Why does this happen?</b></p>
+          <p>
+            SmartScreen is not saying the app is dangerous. It is saying it does
+            not recognise who made it. Windows recognises a publisher when the
+            program is signed with a code signing certificate, which costs a few
+            hundred dollars every year. Kara is free and has no income, so it is
+            not signed, and every unsigned program gets this box — a brand new
+            one especially, before enough people have installed it.
+          </p>
+          <p style="margin-bottom:0">
+            That also means the warning is not proof of anything either way. So
+            do not take this page's word for it — check the file yourself.
+          </p>
+        </div>
+
+        <p style="margin-top:1.6em">
+          <strong>Checking the file, if you want to.</strong> Every release
+          publishes the fingerprint of the exact file it shipped. Open Terminal
+          and run this:
+        </p>
+<pre>Get-FileHash "$HOME\Downloads\Kara-Setup.exe" -Algorithm SHA256</pre>
+        <p>
+          Compare what it prints against
+          <a href="https://github.com/bryramirezp/kara/releases/latest">SHA256SUMS.txt</a>
+          on the release page. If the two match, the file on your disk is byte
+          for byte the one that was published. If they do not match, delete it
+          and download again.
+        </p>
+        <p>
+          The installer is also built in the open. It is compiled by
+          <a href="https://github.com/bryramirezp/kara/actions">a GitHub Actions workflow</a>
+          from <a href="https://github.com/bryramirezp/kara">source you can read</a>,
+          not on anybody's laptop.
+        </p>
+      </li>
+
+      <!-- ── 3 ──────────────────────────────────────────────────────────── -->
+      <li id="installer">
+        <span class="step-title">Run the installer</span>
+        <p>
+          Kara installs for you only, inside your own user folder, so Windows
+          never asks for an administrator password. Click through and the
+          defaults are fine.
+        </p>
+
+        <figure class="shot">
+          <div class="win wizard">
+            <div class="win-bar"><span>Setup - Kara</span><span class="x">&times;</span></div>
+            <div class="win-body">
+              <h4>Select Additional Tasks</h4>
+              <p>Which additional tasks should be performed?</p>
+              <div class="task"><span class="box on"></span><span>Start Kara when Windows starts</span></div>
+              <div class="task"><span class="box"></span><span>Create a desktop icon</span></div>
+              <p style="margin-top:1.4em">Destination folder</p>
+              <div class="path">C:\Users\you\AppData\Local\Programs\Kara</div>
+            </div>
+            <div class="win-foot">
+              <span class="win-btn">Back</span>
+              <span class="win-btn go">Next</span>
+              <span class="win-btn">Cancel</span>
+            </div>
+          </div>
+          <figcaption>An illustration of the setup wizard. Leaving <strong>Start Kara when Windows starts</strong> ticked means it is always there when you need it.</figcaption>
+        </figure>
+
+        <p style="margin-top:1.6em">
+          When it finishes, Kara is in your Start menu. If you ever want it gone,
+          it uninstalls from <strong>Settings &rarr; Apps</strong> like anything else.
+        </p>
+      </li>
+
+      <!-- ── 4 ──────────────────────────────────────────────────────────── -->
+      <li id="firstrun">
+        <span class="step-title">The first time you open it, wait for the model</span>
+        <p>
+          Kara does the speech recognition on your own computer, which means the
+          speech model has to live on your disk. The first launch downloads it —
+          about 460 MB, once. It needs the internet for this and only this.
+        </p>
+
+        <figure class="shot">
+          <div class="win">
+            <div class="win-bar"><span>Kara</span><span class="x">&times;</span></div>
+            <div class="win-body">
+              <h4 style="font-size:1.05rem">Downloading the speech model</h4>
+              <div class="bar-track"><div class="bar-fill" style="width:62%"></div></div>
+              <p style="margin-bottom:1.2em">285 MB of 460 MB &middot; this happens only once</p>
+            </div>
+          </div>
+          <figcaption>An illustration of the first-run download. On a normal connection it takes a few minutes.</figcaption>
+        </figure>
+
+        <div class="callout">
+          <p style="margin-bottom:0">
+            <b>After this, unplug the internet if you like.</b> Nothing you say
+            is ever sent anywhere. There is no account, no server, and no
+            telemetry — the recognition runs entirely on your machine.
+          </p>
+        </div>
+      </li>
+
+      <!-- ── 5 ──────────────────────────────────────────────────────────── -->
+      <li id="dictate">
+        <span class="step-title">Hold Insert and talk</span>
+        <p>
+          That is the whole thing. Hold the <kbd>Insert</kbd> key, say your
+          sentence, let go. A moment later the words are typed wherever your
+          cursor was — your browser, Word, a chat box, anywhere.
+        </p>
+
+        <figure class="shot">
+          <img class="on-dark"  src="screenshot-main-dark.png"  alt="The Kara window, dark theme" style="width:300px;border:1px solid var(--line);border-radius:12px">
+          <img class="on-light" src="screenshot-main-light.png" alt="The Kara window, light theme" style="width:300px;border:1px solid var(--line);border-radius:12px">
+          <figcaption>The real window. It hides near the clock — click that icon to bring it back.</figcaption>
+        </figure>
+
+        <p style="margin-top:1.6em">
+          Do not like <kbd>Insert</kbd>? Click the <strong>&#9881;</strong>
+          button to pick a different key, a mouse button, your microphone, or
+          the language you speak.
+        </p>
+      </li>
+
+    </ol>
+  </div>
+</section>
+
+<!-- ── When it does not go smoothly ─────────────────────────────────────── -->
+<section>
+  <div class="wrap narrow">
+    <p class="eyebrow">If something goes wrong</p>
+    <h2>The three things that actually go wrong</h2>
+
+    <details>
+      <summary>The blue box has no "Run anyway" button</summary>
+      <p>
+        You have to click <strong>More info</strong> first — it is small grey
+        text above the button, easy to miss. If there is still no such button,
+        your PC has Smart App Control switched on, which is stricter than
+        SmartScreen and blocks all unsigned software outright. It can only be
+        turned off, never back on, so think about it before you do: open
+        <strong>Windows Security &rarr; App &amp; browser control &rarr; Smart App
+        Control settings</strong>.
+      </p>
+    </details>
+
+    <details>
+      <summary>My antivirus deleted the file</summary>
+      <p>
+        Some antivirus products flag any unsigned installer, and PyInstaller
+        programs like this one get flagged more than most because malware
+        authors use the same packer. Check the SHA256 as described in step two.
+        If it matches the published one, the file is the one that was built in
+        public from source, and you can restore it from your antivirus'
+        quarantine and add an exclusion.
+      </p>
+    </details>
+
+    <details>
+      <summary>It types nothing when I let go</summary>
+      <p>
+        Give the model a moment on the first sentence — it loads into memory the
+        first time and is quick after that. If nothing appears at all, open the
+        settings with <strong>&#9881;</strong> and check the microphone: if
+        <strong>auto</strong> picked the wrong one, choose yours from the list.
+      </p>
+    </details>
+
+    <p style="margin-top:2.4em">
+      Still stuck? <a href="https://github.com/bryramirezp/kara/issues">Open an issue on GitHub</a>
+      and describe what happened.
+    </p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="index.html">Kara</a> ·
+    <a href="https://github.com/bryramirezp/kara">Source on GitHub</a> ·
+    MIT licensed · Made by <a href="https://github.com/bryramirezp">bryramirezp</a>
+  </div>
+</footer>
+
+<script src="theme.js"></script>
+
+</body>
+</html>

@@ -50,22 +50,6 @@ that. It dictates text, and that part is free and works with no connection.
 
 Run it and you are done. You do not need to install Python or anything else.
 
-### Or with winget
-
-```
-winget install bryramirezp.Kara
-```
-
-<img src="docs/winget-command.png" alt="A PowerShell window with the command typed in" width="620">
-
-Press `Win`+`X` and pick **Terminal**, type that line, press Enter. No
-administrator rights needed, and `winget upgrade` handles updates later.
-
-> Not live yet: the package is waiting for Microsoft to merge it
-> ([pull request 417700](https://github.com/microsoft/winget-pkgs/pull/417700)),
-> which usually takes a few days. Until then the command says "No package found
-> matching input criteria" and the download link above is the way in.
-
 > The installer is not signed, so Windows may show a blue box that says
 > "Windows protected your PC". Click **More info**, then **Run anyway**.
 > Signing costs money every year, which is a lot for a free tool.
