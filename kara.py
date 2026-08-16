@@ -9,6 +9,7 @@ __version__ = "0.2.3"
 
 import sys
 import os
+import io
 import json
 import math
 import shutil
@@ -17,6 +18,8 @@ import threading
 import time
 import queue
 import ctypes
+import datetime
+import platform
 from collections import deque
 
 # True in the downloadable build. It leaves the CUDA libraries out on purpose --
@@ -141,6 +144,96 @@ if not os.path.exists(SETTINGS_FILE):
             shutil.copyfile(_old, SETTINGS_FILE)
         except OSError:
             pass
+
+# ── Development instrumentation ───────────────────────────────────────────────
+# Off unless KARA_DEBUG_LOG is set, so a normal build never writes this file and
+# never can: there is no setting that turns it on and no network code anywhere
+# in it. It exists to answer questions the developer cannot answer from his own
+# machine -- "why does pressing the key take two seconds on that laptop and
+# eight milliseconds on this one" -- by timing each step separately on the
+# machine that is actually slow.
+#
+# What it records is timings, sizes and device names. What it never records is
+# what anybody said: the transcript is not passed in, and the only thing derived
+# from it is how many characters long it was. Keep it that way. A file that
+# cannot leak speech is worth more than one with a redaction pass.
+#
+#     setx KARA_DEBUG_LOG 1
+#     setx KARA_MACHINE   notebook-a
+#
+# Writes one JSON object per line to  %LOCALAPPDATA%\Kara\trace.jsonl
+TRACE_FILE = os.path.join(APP_DIR, "trace.jsonl")
+
+
+class _Trace:
+    """One JSONL line per press-to-typed cycle, or nothing at all."""
+
+    def __init__(self):
+        self.enabled = bool(os.environ.get("KARA_DEBUG_LOG"))
+        self.machine = os.environ.get("KARA_MACHINE") or platform.node()
+        self._seq = 0
+        self._lock = threading.Lock()
+        self._cur = None
+
+    def start(self):
+        """Begin a cycle. Called on key down, discarding any half-finished one."""
+        if not self.enabled:
+            return
+        self._seq += 1
+        self._cur = {"t0": time.perf_counter(), "ms": {}, "seq": self._seq}
+
+    def mark(self, name):
+        """Milliseconds from key down to now, under `name`."""
+        if not self.enabled or self._cur is None:
+            return
+        self._cur["ms"][name] = round((time.perf_counter() - self._cur["t0"]) * 1000, 1)
+
+    def span(self, name):
+        """Time one call: `with trace.span('stream_start'): ...`"""
+        return _Span(self, name)
+
+    def _record(self, name, ms):
+        if self._cur is not None:
+            self._cur["ms"][name] = round(ms, 1)
+
+    def set(self, **fields):
+        if self.enabled and self._cur is not None:
+            self._cur.update(fields)
+
+    def finish(self, **fields):
+        """Write the line and close the cycle out."""
+        if not self.enabled or self._cur is None:
+            return
+        cur, self._cur = self._cur, None
+        cur.pop("t0", None)
+        cur.update(fields)
+        cur["ts"] = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+        cur["machine"] = self.machine
+        cur["version"] = __version__
+        try:
+            with self._lock, io.open(TRACE_FILE, "a", encoding="utf-8") as f:
+                f.write(json.dumps(cur, ensure_ascii=False, sort_keys=True) + "\n")
+        except OSError:
+            # Instrumentation that can break dictation is worse than no
+            # instrumentation, so a failure here is dropped on the floor.
+            pass
+
+
+class _Span:
+    def __init__(self, trace, name):
+        self.trace, self.name = trace, name
+
+    def __enter__(self):
+        self.t = time.perf_counter()
+        return self
+
+    def __exit__(self, *exc):
+        if self.trace.enabled:
+            self.trace._record(self.name, (time.perf_counter() - self.t) * 1000)
+        return False
+
+
+trace = _Trace()
 
 # ── Settings ──────────────────────────────────────────────────────────────────
 DEFAULT_SETTINGS = {
@@ -778,23 +871,51 @@ def _key_label():
     """Just the key, for the keycap under the log."""
     return hotkey_display_name(_current_hotkey_str).upper()
 
+def _mic_facts(device):
+    """Which device and which Windows audio backend, for the trace.
+
+    The backend is the point. MME, DirectSound, WASAPI and WDM-KS have wildly
+    different costs to open, and a Bluetooth headset on one of them can take
+    over a second to switch into its recording profile. Without this the trace
+    would show a slow open and no way to tell what was slow about it.
+    """
+    if not trace.enabled:
+        return {}
+    try:
+        info = sd.query_devices(device, kind="input") if device is not None \
+               else sd.query_devices(kind="input")
+        api = sd.query_hostapis(info["hostapi"])["name"]
+        return {"mic": info["name"], "hostapi": api}
+    except Exception:
+        return {}
+
+
 def _open_stream():
     """Open input stream on the currently selected mic. Called at each record start,
     so device hotplug (headsets, controllers) is picked up automatically."""
     global stream, stream_samplerate
-    device = resolve_input_device(app_settings.get("mic", "auto"))
+    with trace.span("resolve_device"):
+        device = resolve_input_device(app_settings.get("mic", "auto"))
     last_err = None
     for sr in (SAMPLE_RATE, None):
         try:
             if sr is None:  # fall back to the device's native rate
-                info = sd.query_devices(device, kind="input") if device is not None \
-                       else sd.query_devices(kind="input")
+                with trace.span("query_native_rate"):
+                    info = sd.query_devices(device, kind="input") if device is not None \
+                           else sd.query_devices(kind="input")
                 sr = int(info["default_samplerate"])
-            s = sd.InputStream(samplerate=sr, channels=1, device=device,
-                               callback=audio_callback, dtype="float32")
-            s.start()
+                trace.set(fell_back_to_native_rate=True)
+            # Split from .start() on purpose: opening the device and getting it
+            # running are different costs, and on a Bluetooth headset it is the
+            # second one that takes a second and a half.
+            with trace.span("stream_ctor"):
+                s = sd.InputStream(samplerate=sr, channels=1, device=device,
+                                   callback=audio_callback, dtype="float32")
+            with trace.span("stream_start"):
+                s.start()
             stream = s
             stream_samplerate = sr
+            trace.set(sr=sr, **_mic_facts(device))
             return True
         except Exception as e:
             last_err = e
@@ -814,18 +935,26 @@ def _close_stream():
 def start_recording():
     global audio_frames, recording
     audio_frames = []
-    with stream_lock:
+    with trace.span("lock_wait"):
+        stream_lock.acquire()
+    try:
         ok = _open_stream()
+    finally:
+        stream_lock.release()
     if not ok:
         with status_lock:
             recording = False
         ui_queue.put(("status", "Can't use the microphone. Check settings.",
                       theme_color("status_error")))
+        trace.finish(err="mic_open_failed")
         return
     if tray_icon:
         tray_icon.icon  = TRAY_REC
         tray_icon.title = "Kara — recording"
     ui_queue.put(("recording", True))
+    # Everything above is what the user waits through before the window says
+    # LISTENING, which is the number the whole trace exists to explain.
+    trace.mark("press_to_listening")
 
 def stop_and_transcribe():
     with stream_lock:
@@ -836,11 +965,15 @@ def stop_and_transcribe():
     ui_queue.put(("recording", False))
     if not audio_frames:
         ui_queue.put(("status", _idle_status(), theme_color("status_idle")))
+        trace.finish(err="no_audio")
         return
     data = np.concatenate(audio_frames, axis=0).flatten().astype(np.float32)
     sr = stream_samplerate
     dur = len(data) / sr
     ui_queue.put(("log", f"Recorded {dur:.1f}s", "dim"))
+    # How much speech actually landed, against how long the key was down: the
+    # gap between the two is audio lost to the microphone still waking up.
+    trace.set(audio_s=round(dur, 2))
     threading.Thread(target=_transcribe, args=(data, sr), daemon=True).start()
 
 def _transcribe(audio_data, sr):
@@ -855,6 +988,7 @@ def _transcribe(audio_data, sr):
         if dur < 0.2 or peak < 0.005:
             ui_queue.put(("log", "Too short or too quiet — nothing to type.", "dim"))
             ui_queue.put(("status", _idle_status(), theme_color("status_idle")))
+            trace.finish(err="too_short_or_quiet", peak=round(peak, 4))
             return
 
         if sr != SAMPLE_RATE:
@@ -873,26 +1007,40 @@ def _transcribe(audio_data, sr):
         if language not in LANGUAGE_CODES:
             language = DEFAULT_SETTINGS["language"]
 
-        with model_lock:
-            segments, info = model_obj.transcribe(
-                audio_data, language=language, beam_size=5, vad_filter=False
-            )
-            text = " ".join(seg.text.strip() for seg in segments).strip()
+        with trace.span("model_lock_wait"):
+            model_lock.acquire()
+        try:
+            with trace.span("transcribe"):
+                segments, info = model_obj.transcribe(
+                    audio_data, language=language, beam_size=5, vad_filter=False
+                )
+                text = " ".join(seg.text.strip() for seg in segments).strip()
+        finally:
+            model_lock.release()
+
+        # The length of what was said, never what was said. See _Trace.
+        trace.set(chars=len(text), peak=round(peak, 4), lang=language)
 
         if text:
             ui_queue.put(("log", text, "said"))
             ui_queue.put(("status", _idle_status(), theme_color("status_idle")))
-            prev = pyperclip.paste()
-            pyperclip.copy(text)
-            pyautogui.hotkey("ctrl", "v")
-            time.sleep(0.3)  # let the target app read the clipboard before restore
-            pyperclip.copy(prev)
+            with trace.span("paste"):
+                prev = pyperclip.paste()
+                pyperclip.copy(text)
+                pyautogui.hotkey("ctrl", "v")
+                time.sleep(0.3)  # let the target app read the clipboard before restore
+                pyperclip.copy(prev)
+            trace.finish()
         else:
             ui_queue.put(("log", "I didn't hear any words.", "dim"))
             ui_queue.put(("status", _idle_status(), theme_color("status_idle")))
+            trace.finish(err="no_words")
     except Exception as e:
         ui_queue.put(("log", f"Something went wrong: {e}", "error"))
         ui_queue.put(("status", _idle_status(), theme_color("status_idle")))
+        # The class name, not str(e): a message can carry a file path, and a
+        # path can carry the user's name.
+        trace.finish(err=type(e).__name__)
 
 # ── Trigger guard ─────────────────────────────────────────────────────────────
 def _may_record():
@@ -964,6 +1112,7 @@ def on_key_press(key):
         if not _may_record():
             return
         _trigger_down = True
+        trace.start()
         with status_lock:
             recording = True
         start_recording()
@@ -978,6 +1127,7 @@ def on_key_release(key):
         return
     if _trigger_down:
         _trigger_down = False
+        trace.mark("hold")      # how long the key was actually held down
         with status_lock:
             recording = False
         stop_and_transcribe()
