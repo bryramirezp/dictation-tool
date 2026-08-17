@@ -1275,22 +1275,21 @@ class KaraApp(ctk.CTk):
     # used to look identical -- same 11pt monospace, one after another -- so
     # finding what you actually said meant reading past the bookkeeping.
     #
-    # Size sorts them out. Your words get 12pt proportional, which is the size
-    # you would set a paragraph in; the app's own lines drop to 9pt and grey,
-    # small enough to skim past. No boxes, no rules, no colour coding to learn.
-    #
-    # 12 rather than 14: at 14 a normal sentence wrapped onto three lines in a
-    # 320px window and the history stopped feeling like a list.
+    # Size sorts them out, barely. Your words are 11pt and white; the app's own
+    # lines are 9pt and grey. Two points and a shade is enough to skim past the
+    # bookkeeping, and it was worth less than that: at 14pt one ordinary
+    # sentence wrapped onto three lines in a 320px window and the history
+    # stopped reading as a list at all.
     LOG_FONTS = {
-        "said":  ("Segoe UI", 12),
+        "said":  ("Segoe UI", 11),
         "ok":    ("Segoe UI", 9),
         "dim":   ("Segoe UI", 9),
         "error": ("Segoe UI", 9),
     }
-    # (above, below) in px. A sentence gets air around it; the small lines sit
+    # (above, below) in px. A sentence gets a little air; the small lines sit
     # tight against whatever they are annotating.
     LOG_SPACING = {
-        "said":  (8, 8),
+        "said":  (6, 4),
         "ok":    (1, 1),
         "dim":   (1, 1),
         "error": (1, 1),
@@ -1316,7 +1315,12 @@ class KaraApp(ctk.CTk):
         """
         scale = ctk.ScalingTracker.get_widget_scaling(self)
         t = self.theme
-        colours = {"ok": t["log_ok"], "error": t["log_error"],
+        # Everything the app says about itself is grey, including "Ready to
+        # use." -- it used to be lime, which made a routine startup line the
+        # brightest thing on screen. The exception is a failure: a line telling
+        # you something broke has to look different from one telling you a
+        # recording was 1.8 seconds long.
+        colours = {"ok": t["log_dim"], "error": t["log_error"],
                    "dim": t["log_dim"], "said": t["text_title"]}
         for name, (family, size) in self.LOG_FONTS.items():
             above, below = self.LOG_SPACING[name]
