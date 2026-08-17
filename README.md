@@ -9,10 +9,11 @@ Hold a key, speak, and it types for you.
 
 No account, no cloud, no subscription.
 
-<img src="docs/screenshot-main-dark.png" alt="The main window" width="300">
+<img src="docs/screenshot-main-dark.png" alt="The Kara window, listing sentences that have been dictated" width="300">
 
 [**Download for Windows**](https://github.com/bryramirezp/kara/releases/download/v0.2.4/Kara-Setup-0.2.4.exe)
  · [Website](https://bryramirezp.github.io/kara/)
+ · [What's changed](CHANGELOG.md)
  · [All files](https://github.com/bryramirezp/kara/releases/latest)
 
 </div>
@@ -78,7 +79,7 @@ To start it with Windows, tick the box during install. If you missed it, press
 | **Hotkey** | The key you hold to record. Extra mouse buttons work too. |
 | **Microphone** | Leave it on auto unless you have several and want a specific one. |
 | **Language** | Pick the one you speak. This makes the app faster and more accurate. |
-| **Device** | Your processor, or your graphics card if you have an NVIDIA one. |
+| **Device** | Your processor, or your graphics card if you have an NVIDIA one. The installer only offers the processor — see below. |
 | **Model** | Bigger models are more accurate but slower. |
 
 ### About the hotkey
@@ -104,9 +105,14 @@ launch.bat
 That one extra package is all you need. The CUDA Toolkit you may already have on
 your computer is not used, so it does not matter which version it is.
 
-If the graphics card is not ready, the app quietly uses your processor instead.
-It only complains when you set Device to **gpu** yourself, and then it tells you
-what to install.
+The installed version has no graphics card option at all: it ships without the
+CUDA libraries, which are larger than everything else put together, so **gpu**
+is not in the dropdown. Run it from the source code, as above, and the option
+appears.
+
+Running from source, if the card is not ready the app quietly uses your
+processor instead. It only complains when you set Device to **gpu** yourself,
+and then it tells you what to install.
 
 ## Running from source
 

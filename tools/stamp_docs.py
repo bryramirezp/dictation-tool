@@ -111,6 +111,23 @@ def rules(ver, mb):
     for rel in ("README.md", "docs/index.html", "docs/install.html"):
         r.append((rel, URL, r"\g<1>v%s\g<2>%s\g<3>" % (ver, ver)))
 
+    # The installer's name in prose, which is not the same thing as the link.
+    # Versioning the links and leaving the words alone left the install guide
+    # telling people to run
+    #     Get-FileHash "$HOME\Downloads\Kara-Setup.exe"
+    # on a file its own button had just saved under a different name. That
+    # command is the answer the page gives to "how do I know this is safe", so
+    # it failing with a path error is worse than the size being a megabyte out.
+    NAME = r"Kara-Setup-\d+\.\d+\.\d+\.exe"
+    r.append(("docs/install.html", NAME, "Kara-Setup-%s.exe" % ver))
+
+    # And the one machine-readable link that was still pointing at the floating
+    # "latest" while every button on the page had moved to a fixed version.
+    r.append(("docs/index.html",
+              r'("downloadUrl": ")[^"]*(")',
+              r"\g<1>https://github.com/bryramirezp/kara/releases/download/"
+              r"v%s/Kara-Setup-%s.exe\g<2>" % (ver, ver)))
+
     if mb is not None:
         size = "%d MB" % mb
         r += [

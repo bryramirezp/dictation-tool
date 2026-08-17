@@ -95,11 +95,20 @@ jobs:
             (Get-Item dist/Kara-*-portable.zip).FullName
             (Resolve-Path dist/SHA256SUMS.txt).Path
           )
+          # Notes come from CHANGELOG.md rather than --generate-notes, which
+          # lists merged pull requests and, this project having none, produced a
+          # release body containing nothing but a link to the diff. This exits
+          # non-zero if the tag has no section, so a release cannot go out
+          # saying nothing about itself.
+          python tools/release_notes.py $tag --out notes.md
+          if ($LASTEXITCODE -ne 0) { throw "no CHANGELOG section for $tag" }
+
           # The release may already exist: creating the tag through the web or
           # the gh CLI publishes one and then triggers this workflow.
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
             gh release upload $tag @files --clobber
+            gh release edit $tag --notes-file notes.md
           } else {
-            gh release create $tag @files --title "Kara $tag" --generate-notes
+            gh release create $tag @files --title "Kara $tag" --notes-file notes.md
           }
