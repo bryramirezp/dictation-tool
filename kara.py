@@ -349,8 +349,6 @@ THEMES = {
         "hover_close":         "#3a1010",
         "hover_neutral":       "#262626",
         "hover_settings":      "#1f2a0c",
-        "dot_idle":            "#666666",
-        "dot_rec":             "#f72929",   # red stays red: recording is a
         "bar_idle":            "#333333",
         "scrollbar":           "#333333",
         "scrollbar_hover":     "#4d4d4d",
@@ -390,8 +388,6 @@ THEMES = {
         "hover_close":         "#f2c9c9",
         "hover_neutral":       "#e6e6e6",
         "hover_settings":      "#eaf5d0",
-        "dot_idle":            "#cccccc",
-        "dot_rec":             "#c82121",
         "bar_idle":            "#cccccc",
         "scrollbar":           "#cccccc",
         "scrollbar_hover":     "#999999",
@@ -606,7 +602,7 @@ MARK_STATES = {
     "working":   (255, 196, 60),
 }
 
-def _make_tray_icon(rec=False, size=64, state=None):
+def _make_tray_icon(rec=False, size=64, state=None, compact=None):
     """Kara's mark: a status ring around a capsule, on a dark disc.
 
     The ring is the whole idea. It is the one thing the two references share --
@@ -623,8 +619,15 @@ def _make_tray_icon(rec=False, size=64, state=None):
     of it. At that size a ring is a one-pixel hair that eats its own middle, and
     what survives is a blob. A filled shape survives, and in a tray full of grey
     it is the colour that makes it findable at all.
+
+    `compact` forces that second drawing at any size, which is what the header
+    mark wants: it is displayed at 20px but has to be rendered large enough for
+    a 150% display, and picking the form by render size would have handed it the
+    ring at a scale the ring does not survive.
     """
     colour = MARK_STATES[state or ("recording" if rec else "idle")]
+    if compact is None:
+        compact = size < 40
     ss  = 4
     s   = size * ss
     end = s - 1
@@ -637,7 +640,7 @@ def _make_tray_icon(rec=False, size=64, state=None):
     DISC    = (23, 23, 23)
     CAPSULE = (232, 232, 232)
 
-    if size >= 40:
+    if not compact:
         draw.ellipse(px(0, 0, 1, 1), fill=DISC)
         # Left open at the top, like an indicator part way round its travel.
         # A closed ring reads as a frame; a broken one reads as a state.
@@ -654,6 +657,29 @@ def _make_tray_icon(rec=False, size=64, state=None):
 
 TRAY_IDLE = _make_tray_icon(False)
 TRAY_REC  = _make_tray_icon(True)
+
+# The same mark, in the window. It replaces a "●" glyph that was the only piece
+# of chrome not carrying the brand, and it is the app's own drawing rather than
+# a file: nothing here opens an image at runtime, and there is no _MEIPASS
+# helper, so a bundled PNG would resolve against the wrong directory once
+# PyInstaller has had it. Rendered at 96 and shown at 20 so a 150% display has
+# real pixels to scale into.
+MARK_PX  = 20
+_MARK_HI = 96
+_mark_cache = {}
+
+def mark_image(state, px=MARK_PX):
+    """A CTkImage of the mark in one of MARK_STATES, built once per state.
+
+    Built on demand rather than beside TRAY_IDLE: CTkImage registers itself with
+    customtkinter's scaling tracker, and at import time there is no root window
+    for it to register against yet.
+    """
+    key = (state, px)
+    if key not in _mark_cache:
+        art = _make_tray_icon(size=_MARK_HI, state=state, compact=True)
+        _mark_cache[key] = ctk.CTkImage(light_image=art, dark_image=art, size=(px, px))
+    return _mark_cache[key]
 
 # ── Global state ──────────────────────────────────────────────────────────────
 recording          = False
@@ -1022,7 +1048,8 @@ def _transcribe(audio_data, sr):
         trace.set(chars=len(text), peak=round(peak, 4), lang=language)
 
         if text:
-            ui_queue.put(("log", text, "said"))
+            ui_queue.put(("said", text))          # the stage, typed out
+            ui_queue.put(("log", text, "said"))   # the log, all at once
             ui_queue.put(("status", _idle_status(), theme_color("status_idle")))
             with trace.span("paste"):
                 prev = pyperclip.paste()
@@ -1190,8 +1217,10 @@ class KaraApp(ctk.CTk):
     CONTENT_W = W - SCROLLBAR_W - BORDER_SPACING - 2 * INNER_PAD   # 266
     WRAP_W    = CONTENT_W - 8                                      # 258, keeps text inside
 
-    # Level meter: bars across the full content width.
-    METER_N = 34                        # bars
+    # Level meter: it shares the stage's foot with the keycap and the phase
+    # word now, so it gets the gap between them rather than the full width.
+    METER_W_PX = 122                    # canvas width, px
+    METER_N = 20                        # bars
     METER_W = 4                         # bar thickness, px
     METER_H = 26                        # canvas height, px
 
@@ -1217,10 +1246,17 @@ class KaraApp(ctk.CTk):
         self._log_lines = []          # [(text, tag), ...]
         self._last_model_label = ""   # e.g. "small · cpu · int8"
         self._model_is_ready = False
+        self._stage_text = ""         # the last thing said, shown on the stage
+        self._type_job = None         # after() id of the running type animation
+        self._caret_job = None        # after() id of the caret blink
 
         self._build_main()
         self._build_settings()
+        self._build_history()
         self._show_main()
+        # After the widgets exist: the window has to be mapped before Windows
+        # will give it a shape.
+        self.after(60, self._round_corners)
 
         self.after(80, self._process_ui_queue)
         self.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -1249,9 +1285,10 @@ class KaraApp(ctk.CTk):
         hdr.bind("<ButtonPress-1>", self._drag_start)
         hdr.bind("<B1-Motion>",     self._drag_move)
 
-        self._dot = ctk.CTkLabel(hdr, text="●", font=("Segoe UI", 16),
-                                 text_color=t["dot_idle"], width=26)
-        self._dot.pack(side="left", padx=(12, 4))
+        # The mark, not a bullet. Same drawing as the tray icon and the installer
+        # artwork, so the window agrees with every other place the app appears.
+        self._dot = ctk.CTkLabel(hdr, text="", image=mark_image("idle"), width=26)
+        self._dot.pack(side="left", padx=(12, 6))
 
         ctk.CTkLabel(hdr, text="Kara", font=("Segoe UI Semibold", 15),
                      text_color=t["text_title"]).pack(side="left")
@@ -1261,13 +1298,52 @@ class KaraApp(ctk.CTk):
             ("✕", self._on_close,      t["hover_close"]),
             ("─", self._minimize,      t["hover_neutral"]),
             ("⚙", self._show_settings, t["hover_settings"]),
+            ("☰", self._show_history,  t["hover_neutral"]),
         ]:
-            ctk.CTkButton(hdr, text=symbol, width=32, height=28,
+            ctk.CTkButton(hdr, text=symbol, width=32, height=28, corner_radius=8,
                           fg_color="transparent", hover_color=hover,
                           text_color=t["icon_btn"], font=("Segoe UI", 13),
                           command=cmd).pack(side="right", padx=(0, 4))
 
-        # ── Status
+        # ── The live view
+        # No card, no border, no second panel. There used to be a bordered stage
+        # here with the history in another bordered box below it, and at a glance
+        # that read as two windows stuck together rather than one app. The window
+        # itself is the card now (see _round_corners); everything inside sits flat
+        # on it, and the history moved behind the ☰ button.
+        #
+        # The mark, what is loaded, and how to start: the three things worth
+        # saying while nothing is happening.
+        bar = ctk.CTkFrame(self._main_frame, fg_color="transparent")
+        bar.pack(fill="x", padx=20, pady=(14, 0))
+        self._stage_mark = ctk.CTkLabel(bar, text="", image=mark_image("idle", 13),
+                                        width=15)
+        self._stage_mark.pack(side="left", padx=(0, 7))
+        self._model_info = ctk.CTkLabel(bar, text=self._last_model_label,
+                                        font=("Segoe UI", 9),
+                                        text_color=t["model_ready_text"])
+        self._model_info.pack(side="left")
+
+        # The words. This is the whole point of the window, so it gets the room:
+        # everything else on this view is one line tall.
+        body = ctk.CTkFrame(self._main_frame, fg_color="transparent")
+        body.pack(fill="both", expand=True, padx=20, pady=(18, 0))
+        self._stage_label = ctk.CTkLabel(
+            body, text="", font=("Segoe UI", 15), text_color=t["text_title"],
+            wraplength=self.CONTENT_W + 6, justify="left", anchor="nw")
+        self._stage_label.pack(fill="both", expand=True)
+
+        # Foot: key on the left, meter in the middle, phase on the right.
+        foot = ctk.CTkFrame(self._main_frame, fg_color="transparent")
+        foot.pack(fill="x", side="bottom", padx=20, pady=(8, 16))
+
+        self._hold_label = ctk.CTkLabel(
+            foot, text=_key_label(), font=("Consolas", 9, "bold"),
+            text_color=t["text_body"], fg_color=t["bg_button"],
+            corner_radius=8, width=0, height=20, padx=8,
+        )
+        self._hold_label.pack(side="left")
+
         # Rebuilt on every theme switch, so the text has to come from state rather
         # than be hardcoded — otherwise switching theme after load pins the label
         # at "Loading model..." forever.
@@ -1276,24 +1352,27 @@ class KaraApp(ctk.CTk):
         else:
             status_text, status_color = "GETTING READY", t["status_loading"]
         # A phase word in monospace, not a sentence. It changes several times a
-        # minute right above a meter that is also moving, and a short fixed-width
-        # word reads as a state changing rather than as text being replaced.
-        self._status = ctk.CTkLabel(self._main_frame,
-                                    text=status_text,
-                                    font=("Consolas", 11), text_color=status_color)
-        self._status.pack(pady=(14, 6))
+        # minute beside a meter that is also moving, and a short fixed-width word
+        # reads as a state changing rather than as text being replaced.
+        self._status = ctk.CTkLabel(foot, text=status_text, font=("Consolas", 9),
+                                    text_color=status_color, anchor="e", width=76)
+        self._status.pack(side="right")
 
         # ── Level meter
         # A canvas of bars rather than a progress bar. While recording these are
         # the real loudness of the microphone, so it doubles as the answer to
         # "is it even hearing me?" -- the question a flat animated bar cannot
         # answer, because it moves exactly the same whether you speak or not.
-        self._meter = tk.Canvas(self._main_frame, width=self.CONTENT_W,
+        #
+        # bg has to match whatever is behind it: this is a raw tk.Canvas, which
+        # knows nothing about the CTk frame it sits inside, and a mismatch shows
+        # up as a pale rectangle across the foot of the window.
+        self._meter = tk.Canvas(foot, width=self.METER_W_PX,
                                 height=self.METER_H, highlightthickness=0,
                                 bd=0, bg=t["bg_root"])
-        self._meter.pack(pady=(2, 10))
+        self._meter.pack(side="left", padx=(10, 6))
         self._meter_bars = []
-        step = self.CONTENT_W / self.METER_N
+        step = self.METER_W_PX / self.METER_N
         for i in range(self.METER_N):
             x = step * (i + 0.5)
             self._meter_bars.append(self._meter.create_line(
@@ -1306,28 +1385,49 @@ class KaraApp(ctk.CTk):
         self._meter_phase = getattr(self, "_meter_phase", 0)
         self._draw_meter()
 
-        # ── Model info label
-        self._model_info = ctk.CTkLabel(self._main_frame, text=self._last_model_label,
-                                        font=("Segoe UI", 9), text_color=t["model_ready_text"])
-        self._model_info.pack()
+        # Rebuilt on every theme switch, so the greyed-out look has to be
+        # re-applied from state rather than set once at startup. Same for the
+        # stage text, which is restored whole rather than typed again: replaying
+        # the animation on every theme switch would be a party trick.
+        self._set_hold_enabled(self._model_is_ready)
+        self._stage_show(self._stage_text)
 
-        # ── Divider
-        ctk.CTkFrame(self._main_frame, height=1, fg_color=t["border"]).pack(
-            fill="x", padx=16, pady=(8, 0))
+    def _build_history(self):
+        """Everything said so far, on its own view behind the ☰ button.
 
-        ctk.CTkLabel(self._main_frame, text="WHAT YOU SAID",
-                     font=("Segoe UI", 9), text_color=t["text_caption"]).pack(
-            anchor="w", padx=20, pady=(8, 4))
+        It was under the live text on the main window, in its own bordered box.
+        Two boxes in one window read as two windows, and the history is not
+        something you watch -- it is something you go and look at. So it gets the
+        same treatment as the settings: a full view with a way back.
+        """
+        t = self.theme
+        self._history_frame = ctk.CTkFrame(self, fg_color="transparent")
 
-        # ── Log
-        # 220, not 250: the meter is 26px tall where the old progress bar was 5,
-        # and the extra 27px pushed the key hint off the bottom of the window.
-        self._log = ctk.CTkTextbox(self._main_frame, width=self.CONTENT_W, height=220,
-                                   font=("Consolas", 11), fg_color=t["bg_log"],
-                                   text_color=t["text_body"], border_color=t["border"],
-                                   border_width=1, corner_radius=6,
+        hdr = ctk.CTkFrame(self._history_frame, fg_color=t["bg_header"],
+                           corner_radius=0, height=48)
+        hdr.pack(fill="x")
+        hdr.pack_propagate(False)
+        hdr.bind("<ButtonPress-1>", self._drag_start)
+        hdr.bind("<B1-Motion>",     self._drag_move)
+
+        ctk.CTkButton(hdr, text="←", width=36, height=28, corner_radius=8,
+                      fg_color="transparent", hover_color=t["hover_neutral"],
+                      text_color=t["icon_btn"], font=("Segoe UI", 15),
+                      command=self._show_main).pack(side="left", padx=(8, 0))
+        ctk.CTkLabel(hdr, text="What you said", font=("Segoe UI Semibold", 15),
+                     text_color=t["text_title"]).pack(side="left", padx=(4, 0))
+        ctk.CTkButton(hdr, text="✕", width=32, height=28, corner_radius=8,
+                      fg_color="transparent", hover_color=t["hover_close"],
+                      text_color=t["icon_btn"], font=("Segoe UI", 13),
+                      command=self._on_close).pack(side="right", padx=(0, 8))
+
+        # No border and the window's own background: the view is the panel.
+        self._log = ctk.CTkTextbox(self._history_frame,
+                                   font=("Consolas", 11), fg_color=t["bg_root"],
+                                   text_color=t["text_body"],
+                                   border_width=0, corner_radius=0,
                                    wrap="word", state="disabled")
-        self._log.pack(padx=16, pady=(0, 10))
+        self._log.pack(fill="both", expand=True, padx=14, pady=(6, 12))
         # "said" is what you dictated, and it is the one thing here meant to be
         # read as prose, so it gets plain body text. The brand colour is saved
         # for the short confirmations, where it reads as a mark rather than
@@ -1339,27 +1439,6 @@ class KaraApp(ctk.CTk):
             except Exception:
                 pass
         self._restore_log()
-
-        # ── Which key to hold
-        # This used to repeat the status label word for word: both said "Hold
-        # Insert to record", one above the other with the log in between. The
-        # status is now the phase, and the instruction lives here, drawn as the
-        # key itself so it reads at a glance instead of being parsed.
-        foot = ctk.CTkFrame(self._main_frame, fg_color="transparent")
-        foot.pack(pady=(0, 10))
-        ctk.CTkLabel(foot, text="hold", font=("Segoe UI", 9),
-                     text_color=t["text_hint"]).pack(side="left", padx=(0, 6))
-        self._hold_label = ctk.CTkLabel(
-            foot, text=_key_label(), font=("Consolas", 9, "bold"),
-            text_color=t["text_body"], fg_color=t["bg_button"],
-            corner_radius=5, width=0, height=20, padx=8,
-        )
-        self._hold_label.pack(side="left")
-        ctk.CTkLabel(foot, text="to record", font=("Segoe UI", 9),
-                     text_color=t["text_hint"]).pack(side="left", padx=(6, 0))
-        # Rebuilt on every theme switch, so the greyed-out look has to be
-        # re-applied from state rather than set once at startup.
-        self._set_hold_enabled(self._model_is_ready)
 
     def _set_hold_enabled(self, enabled):
         """Grey out the keycap while the key does nothing.
@@ -1373,6 +1452,70 @@ class KaraApp(ctk.CTk):
             fg_color=t["bg_button"] if enabled else "transparent",
         )
 
+    # ── The stage's text ──────────────────────────────────────────────────────
+    # Two entry points on purpose. _stage_type animates, and is what a fresh
+    # transcription gets. _stage_show just puts the text there, and is what a
+    # theme rebuild gets, because re-typing the same sentence every time someone
+    # touches the theme switch would be a party trick rather than feedback.
+
+    CARET = "▏"          # a thin bar, the same idea as the caret on the site
+    TYPE_MS_MAX = 26          # per character, matching the website's demo
+    TYPE_TOTAL_MS = 1100      # ...but never let the whole thing run longer
+
+    def _stage_cancel(self):
+        """Stop any animation mid-flight.
+
+        Every path that replaces the stage's contents calls this first. An
+        after() callback still queued against a widget that _rebuild_ui has
+        already destroyed is a traceback in the Tk main loop, and the two ways
+        to get one -- switching theme while it types, or starting a second
+        recording before the first finished -- are both easy to hit by hand.
+        """
+        for attr in ("_type_job", "_caret_job"):
+            job = getattr(self, attr, None)
+            if job is not None:
+                try:
+                    self.after_cancel(job)
+                except Exception:
+                    pass
+                setattr(self, attr, None)
+
+    def _stage_show(self, text):
+        """Put the finished text on the stage, no animation."""
+        self._stage_cancel()
+        self._stage_text = text
+        self._stage_label.configure(text=text)
+
+    def _stage_type(self, text):
+        """Reveal the text one character at a time, with a caret in front."""
+        self._stage_cancel()
+        self._stage_text = text
+        if not text:
+            self._stage_label.configure(text="")
+            return
+
+        # A fixed 26ms per character reads beautifully on a demo sentence and
+        # absurdly on a long one: 200 characters would spend five seconds
+        # spelling out something already pasted into the other window. So the
+        # per-character delay shrinks to fit a fixed budget instead.
+        step = max(4, min(self.TYPE_MS_MAX, self.TYPE_TOTAL_MS // len(text)))
+
+        def tick(i=1):
+            self._type_job = None
+            self._stage_label.configure(text=text[:i] + self.CARET)
+            if i < len(text):
+                self._type_job = self.after(step, tick, i + 1)
+            else:
+                self._blink_caret(True)
+
+        tick()
+
+    def _blink_caret(self, on):
+        """Blink the caret once the sentence has landed."""
+        self._caret_job = None
+        self._stage_label.configure(text=self._stage_text + (self.CARET if on else " "))
+        self._caret_job = self.after(530, self._blink_caret, not on)
+
     def _build_settings(self):
         t = self.theme
         self._settings_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -1383,7 +1526,7 @@ class KaraApp(ctk.CTk):
         hdr.pack(fill="x")
         hdr.pack_propagate(False)
 
-        ctk.CTkButton(hdr, text="←", width=36, height=28,
+        ctk.CTkButton(hdr, text="←", width=36, height=28, corner_radius=8,
                       fg_color="transparent", hover_color=t["hover_neutral"],
                       text_color=t["icon_btn"], font=("Segoe UI", 15),
                       command=self._show_main).pack(side="left", padx=8)
@@ -1391,7 +1534,7 @@ class KaraApp(ctk.CTk):
         ctk.CTkLabel(hdr, text="Settings", font=("Segoe UI Semibold", 14),
                      text_color=t["text_title"]).pack(side="left")
 
-        ctk.CTkButton(hdr, text="✕", width=32, height=28,
+        ctk.CTkButton(hdr, text="✕", width=32, height=28, corner_radius=8,
                       fg_color="transparent", hover_color=t["hover_close"],
                       text_color=t["icon_btn"], font=("Segoe UI", 13),
                       command=self._on_close).pack(side="right", padx=8)
@@ -1407,7 +1550,7 @@ class KaraApp(ctk.CTk):
                                           text_color=t["status_idle"])
         self._apply_status.pack(pady=(6, 0))
 
-        ctk.CTkButton(footer, text="Save changes", height=36,
+        ctk.CTkButton(footer, text="Save changes", height=36, corner_radius=9,
                       fg_color=t["accent_bg"], hover_color=t["accent_hover"],
                       text_color=t["text_on_accent"],
                       font=("Segoe UI Semibold", 13),
@@ -1436,7 +1579,7 @@ class KaraApp(ctk.CTk):
         def option_menu(variable, values, font_size=12, command=None):
             menu = ctk.CTkOptionMenu(
                 body, variable=variable, values=values,
-                width=self.CONTENT_W, font=("Segoe UI", font_size),
+                width=self.CONTENT_W, font=("Segoe UI", font_size), corner_radius=9,
                 fg_color=t["bg_button"], button_color=t["bg_button_hover"],
                 button_hover_color=t["option_hover"],
                 # customtkinter's dark-blue theme hardcodes #DCE4EE here for both
@@ -1452,7 +1595,7 @@ class KaraApp(ctk.CTk):
         def segmented(values, variable, command=None):
             seg = ctk.CTkSegmentedButton(
                 body, values=values, variable=variable,
-                font=("Segoe UI", 12),
+                font=("Segoe UI", 12), corner_radius=9,
                 fg_color=t["bg_button"], selected_color=t["accent_bg"],
                 selected_hover_color=t["accent_hover"], unselected_color=t["bg_button"],
                 text_color=t["text_on_button"],
@@ -1499,7 +1642,7 @@ class KaraApp(ctk.CTk):
         self._hotkey_btn = ctk.CTkButton(
             body,
             text=f"[ {hotkey_display_name(current_hk)} ]",
-            height=36,
+            height=36, corner_radius=9,
             fg_color=t["bg_button"], hover_color=t["bg_button_hover"],
             text_color=t["text_on_button"],
             font=("Segoe UI Semibold", 13),
@@ -1513,7 +1656,7 @@ class KaraApp(ctk.CTk):
         mic_row.pack(fill="x", pady=(0, 6))
         ctk.CTkLabel(mic_row, text="MICROPHONE", font=("Segoe UI", 9),
                      text_color=t["text_caption"]).pack(side="left")
-        ctk.CTkButton(mic_row, text="↻", width=24, height=20,
+        ctk.CTkButton(mic_row, text="↻", width=24, height=20, corner_radius=6,
                       fg_color="transparent", hover_color=t["hover_neutral"],
                       text_color=t["mic_btn"], font=("Segoe UI", 11),
                       command=self._refresh_mics).pack(side="right")
@@ -1576,13 +1719,21 @@ class KaraApp(ctk.CTk):
 
     def _rebuild_ui(self):
         keep_view = self._view
+        # Before the widgets go: a queued type or caret callback would come back
+        # to a destroyed label and raise inside Tk's main loop. _build_main puts
+        # the text back afterwards, whole rather than typed again.
+        self._stage_cancel()
         self.configure(fg_color=self.theme["bg_root"])
         self._main_frame.destroy()
         self._settings_frame.destroy()
+        self._history_frame.destroy()
         self._build_main()
         self._build_settings()
+        self._build_history()
         if keep_view == "settings":
             self._show_settings()
+        elif keep_view == "history":
+            self._show_history()
         else:
             self._show_main()
 
@@ -1652,16 +1803,75 @@ class KaraApp(ctk.CTk):
                 self.after(100, self._capture_hotkey_poll)
 
     # ── View switching ────────────────────────────────────────────────────────
+    # ── Rounded corners ───────────────────────────────────────────────────────
+    CORNER_R = 14        # matches the cards on the website
+
+    def _hwnd(self):
+        """The top-level window handle Windows knows this by."""
+        self.update_idletasks()
+        wid = self.winfo_id()
+        return ctypes.windll.user32.GetParent(wid) or wid
+
+    def _round_corners(self):
+        """Round the window itself rather than the boxes inside it.
+
+        overrideredirect(True) throws away the native frame, and with it the
+        rounding Windows 11 would have applied for free -- which is why this app
+        was a hard rectangle while its own website was all soft corners. Drawing
+        rounded cards inside it did not fix that; it just put a second rectangle
+        inside the first one.
+
+        Two ways to get the shape, and which one runs depends on the version:
+
+          DWM, on Windows 11. The compositor rounds it, so the edge is
+          antialiased and it matches every other window on the desktop.
+
+          SetWindowRgn, on Windows 10. Clips the window to a rounded rectangle.
+          The corners are aliased because a region is a hard mask, but a slightly
+          jagged curve reads better than no curve, and 10 has no other option.
+
+        Failing is fine. A square window is the status quo, not a bug, so every
+        error here leaves the app exactly as it was.
+        """
+        try:
+            hwnd = self._hwnd()
+            if sys.getwindowsversion().build >= 22000:
+                # DWMWA_WINDOW_CORNER_PREFERENCE = 33, DWMWCP_ROUND = 2
+                pref = ctypes.c_int(2)
+                hr = ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                    hwnd, 33, ctypes.byref(pref), ctypes.sizeof(pref))
+                if hr == 0:
+                    return
+            s = self._get_window_scaling()
+            w, h = round(self.W * s), round(self.H * s)
+            r = round(self.CORNER_R * 2 * s)
+            rgn = ctypes.windll.gdi32.CreateRoundRectRgn(0, 0, w + 1, h + 1, r, r)
+            ctypes.windll.user32.SetWindowRgn(hwnd, rgn, True)
+        except Exception:
+            pass
+
+    def _hide_all(self):
+        for name in ("_main_frame", "_settings_frame", "_history_frame"):
+            frame = getattr(self, name, None)
+            if frame is not None:
+                frame.pack_forget()
+
     def _show_main(self):
-        self._settings_frame.pack_forget()
+        self._hide_all()
         self._main_frame.pack(fill="both", expand=True)
         self._view = "main"
 
     def _show_settings(self):
         self._refresh_mics()
-        self._main_frame.pack_forget()
+        self._hide_all()
         self._settings_frame.pack(fill="both", expand=True)
         self._view = "settings"
+
+    def _show_history(self):
+        self._hide_all()
+        self._history_frame.pack(fill="both", expand=True)
+        self._log.see("end")
+        self._view = "history"
 
     # ── Drag ──────────────────────────────────────────────────────────────────
     def _drag_start(self, e):
@@ -1811,6 +2021,8 @@ class KaraApp(ctk.CTk):
                     self._status.configure(text=msg[1], text_color=msg[2])
                 elif msg[0] == "log":
                     self._append_log(msg[1], msg[2])
+                elif msg[0] == "said":
+                    self._stage_type(msg[1])
                 elif msg[0] == "model_ready":
                     self._set_meter("idle")
                     d, c, m = msg[1], msg[2], msg[3]
@@ -1838,11 +2050,17 @@ class KaraApp(ctk.CTk):
     def _set_recording(self, is_rec):
         t = self.theme
         if is_rec:
-            self._dot.configure(text_color=t["dot_rec"])
+            self._dot.configure(image=mark_image("recording"))
+            self._stage_mark.configure(image=mark_image("recording", 13))
+            # The stage clears the moment you start talking: leaving the previous
+            # sentence up while a new one is being spoken makes it look like the
+            # app heard the wrong thing.
+            self._stage_show("")
             self._status.configure(text="LISTENING", text_color=t["rec_status_text"])
             self._set_meter("recording")
         else:
-            self._dot.configure(text_color=t["dot_idle"])
+            self._dot.configure(image=mark_image("idle"))
+            self._stage_mark.configure(image=mark_image("idle", 13))
             self._status.configure(text="WRITING IT DOWN", text_color=t["processing_text"])
             self._set_meter("idle")
 
