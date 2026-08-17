@@ -47,21 +47,31 @@ jobs:
           }
           Write-Host "version $ver"
 
+      # Before the build, so no installer exists yet and stamp_docs leaves the
+      # size alone. What it does check is everything derived from __version__,
+      # which is the part that actually rotted: the JSON-LD sat three releases
+      # behind because nothing connected it to the source.
+      - name: Check the docs quote this version
+        run: python tools/stamp_docs.py --check
+
       - name: Build
         run: python packaging/build.py
 
-      # build.py stamps the version and the installer's size into the README and
-      # the website. If that changed anything, the copies committed to main were
-      # stale and the site would ship numbers from the previous release.
-      - name: Check the docs quote this build
+      # The size is a different matter. It is only knowable after a build, and
+      # this build is not the maintainer's -- a different dependency resolution
+      # here weighs a few MB more or less, so an exact match is not something to
+      # hold a release hostage to. Reported, not enforced.
+      - name: Report any drift in the size the docs quote
+        if: always()
         shell: pwsh
         run: |
           $dirty = git status --porcelain -- README.md docs
           if ($dirty) {
+            Write-Host "::warning::the docs quote a different installer size than this build produced"
             git --no-pager diff -- README.md docs
-            throw "stale numbers in the docs. Run: py -3 packaging/build.py, then commit README.md and docs/"
+          } else {
+            Write-Host "docs match this build exactly"
           }
-          Write-Host "docs are current"
 
       - name: Keep the build even when nothing is published
         uses: actions/upload-artifact@v4

@@ -46,7 +46,7 @@ that. It dictates text, and that part is free and works with no connection.
 ## Download
 
 **[Download the installer](https://github.com/bryramirezp/kara/releases/latest/download/Kara-Setup.exe)**
-— <!--dl-size-->68 MB<!--/dl-size-->, for Windows 10 and 11. The link starts the download straight away.
+— <!--dl-size-->77 MB<!--/dl-size-->, for Windows 10 and 11. The link starts the download straight away.
 
 Run it and you are done. You do not need to install Python or anything else.
 

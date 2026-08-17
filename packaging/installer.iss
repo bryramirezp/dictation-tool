@@ -15,7 +15,7 @@
 ; the version is written down in exactly one place. The fallback only matters
 ; when someone runs ISCC by hand.
 #ifndef AppVersion
-  #define AppVersion "0.2.3"
+  #define AppVersion "0.2.4"
 #endif
 
 [Setup]
