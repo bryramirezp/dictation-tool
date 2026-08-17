@@ -1048,8 +1048,7 @@ def _transcribe(audio_data, sr):
         trace.set(chars=len(text), peak=round(peak, 4), lang=language)
 
         if text:
-            ui_queue.put(("said", text))          # the stage, typed out
-            ui_queue.put(("log", text, "said"))   # the log, all at once
+            ui_queue.put(("log", text, "said"))
             ui_queue.put(("status", _idle_status(), theme_color("status_idle")))
             with trace.span("paste"):
                 prev = pyperclip.paste()
@@ -1246,13 +1245,9 @@ class KaraApp(ctk.CTk):
         self._log_lines = []          # [(text, tag), ...]
         self._last_model_label = ""   # e.g. "small · cpu · int8"
         self._model_is_ready = False
-        self._stage_text = ""         # the last thing said, shown on the stage
-        self._type_job = None         # after() id of the running type animation
-        self._caret_job = None        # after() id of the caret blink
 
         self._build_main()
         self._build_settings()
-        self._build_history()
         self._show_main()
         # After the widgets exist: the window has to be mapped before Windows
         # will give it a shape.
@@ -1273,6 +1268,65 @@ class KaraApp(ctk.CTk):
         x = sw - round(self.W * s) - round(24 * s)
         y = sh - round(self.H * s) - round(56 * s)
         return f"{self.W}x{self.H}+{max(0, x)}+{max(0, y)}"
+
+    # ── How the history reads ─────────────────────────────────────────────────
+    # One textbox holds two very different kinds of line: sentences you dictated,
+    # and the app talking about itself ("Recorded 3.1s", "Ready to use."). They
+    # used to look identical -- same 11pt monospace, one after another -- so
+    # finding what you actually said meant reading past the bookkeeping.
+    #
+    # Size sorts them out. Your words get 12pt proportional, which is the size
+    # you would set a paragraph in; the app's own lines drop to 9pt and grey,
+    # small enough to skim past. No boxes, no rules, no colour coding to learn.
+    #
+    # 12 rather than 14: at 14 a normal sentence wrapped onto three lines in a
+    # 320px window and the history stopped feeling like a list.
+    LOG_FONTS = {
+        "said":  ("Segoe UI", 12),
+        "ok":    ("Segoe UI", 9),
+        "dim":   ("Segoe UI", 9),
+        "error": ("Segoe UI", 9),
+    }
+    # (above, below) in px. A sentence gets air around it; the small lines sit
+    # tight against whatever they are annotating.
+    LOG_SPACING = {
+        "said":  (8, 8),
+        "ok":    (1, 1),
+        "dim":   (1, 1),
+        "error": (1, 1),
+    }
+
+    def _log_font(self, tag):
+        family, size = self.LOG_FONTS[tag]
+        return ctk.CTkFont(family=family, size=size)
+
+    def _style_log_tags(self):
+        """Give each tag its own size, going around CTkTextbox to do it.
+
+        CTkTextbox.tag_config refuses a font outright -- "'font' option
+        forbidden, because would be incompatible with scaling" -- because it
+        scales its own font and a tag would escape that. The Tk widget
+        underneath has no such objection, so the tags are set on it directly and
+        the scaling CustomTkinter would have applied is applied here instead.
+
+        Worth knowing: this failed silently for a while behind a bare except,
+        which swallowed the colours along with the fonts and made every line in
+        the history look identical. Hence no except here -- if the private
+        attribute ever moves, it should be loud.
+        """
+        scale = ctk.ScalingTracker.get_widget_scaling(self)
+        t = self.theme
+        colours = {"ok": t["log_ok"], "error": t["log_error"],
+                   "dim": t["log_dim"], "said": t["text_title"]}
+        for name, (family, size) in self.LOG_FONTS.items():
+            above, below = self.LOG_SPACING[name]
+            self._log._textbox.tag_config(
+                name,
+                foreground=colours[name],
+                font=(family, max(1, round(size * scale))),
+                spacing1=round(above * scale),
+                spacing3=round(below * scale),
+            )
 
     def _build_main(self):
         t = self.theme
@@ -1298,7 +1352,6 @@ class KaraApp(ctk.CTk):
             ("✕", self._on_close,      t["hover_close"]),
             ("─", self._minimize,      t["hover_neutral"]),
             ("⚙", self._show_settings, t["hover_settings"]),
-            ("☰", self._show_history,  t["hover_neutral"]),
         ]:
             ctk.CTkButton(hdr, text=symbol, width=32, height=28, corner_radius=8,
                           fg_color="transparent", hover_color=hover,
@@ -1310,10 +1363,10 @@ class KaraApp(ctk.CTk):
         # here with the history in another bordered box below it, and at a glance
         # that read as two windows stuck together rather than one app. The window
         # itself is the card now (see _round_corners); everything inside sits flat
-        # on it, and the history moved behind the ☰ button.
+        # on it.
         #
-        # The mark, what is loaded, and how to start: the three things worth
-        # saying while nothing is happening.
+        # The mark, and what is loaded: the two things worth saying while nothing
+        # is happening.
         bar = ctk.CTkFrame(self._main_frame, fg_color="transparent")
         bar.pack(fill="x", padx=20, pady=(14, 0))
         self._stage_mark = ctk.CTkLabel(bar, text="", image=mark_image("idle", 13),
@@ -1324,14 +1377,24 @@ class KaraApp(ctk.CTk):
                                         text_color=t["model_ready_text"])
         self._model_info.pack(side="left")
 
-        # The words. This is the whole point of the window, so it gets the room:
-        # everything else on this view is one line tall.
-        body = ctk.CTkFrame(self._main_frame, fg_color="transparent")
-        body.pack(fill="both", expand=True, padx=20, pady=(18, 0))
-        self._stage_label = ctk.CTkLabel(
-            body, text="", font=("Segoe UI", 15), text_color=t["text_title"],
-            wraplength=self.CONTENT_W + 6, justify="left", anchor="nw")
-        self._stage_label.pack(fill="both", expand=True)
+        # ── What you said, all of it, right here
+        # The last sentence used to appear alone, typed out one letter at a time,
+        # with everything before it hidden behind a button. Reading back is the
+        # common case and the animation was in the way of it, so the history is
+        # the view now: newest at the bottom, nothing to click through.
+        #
+        # No border and the window's own background, so it is not a box inside a
+        # box. What separates a sentence from the noise around it is type size,
+        # not a frame: see _log_tag_fonts.
+        self._log = ctk.CTkTextbox(
+            self._main_frame, font=self._log_font("dim"),
+            fg_color=t["bg_root"], text_color=t["text_body"],
+            border_width=0, corner_radius=0, wrap="word", state="disabled",
+            scrollbar_button_color=t["scrollbar"],
+            scrollbar_button_hover_color=t["scrollbar_hover"])
+        self._log.pack(fill="both", expand=True, padx=(16, 6), pady=(14, 0))
+        self._style_log_tags()
+        self._restore_log()
 
         # Foot: key on the left, meter in the middle, phase on the right.
         foot = ctk.CTkFrame(self._main_frame, fg_color="transparent")
@@ -1386,59 +1449,8 @@ class KaraApp(ctk.CTk):
         self._draw_meter()
 
         # Rebuilt on every theme switch, so the greyed-out look has to be
-        # re-applied from state rather than set once at startup. Same for the
-        # stage text, which is restored whole rather than typed again: replaying
-        # the animation on every theme switch would be a party trick.
+        # re-applied from state rather than set once at startup.
         self._set_hold_enabled(self._model_is_ready)
-        self._stage_show(self._stage_text)
-
-    def _build_history(self):
-        """Everything said so far, on its own view behind the ☰ button.
-
-        It was under the live text on the main window, in its own bordered box.
-        Two boxes in one window read as two windows, and the history is not
-        something you watch -- it is something you go and look at. So it gets the
-        same treatment as the settings: a full view with a way back.
-        """
-        t = self.theme
-        self._history_frame = ctk.CTkFrame(self, fg_color="transparent")
-
-        hdr = ctk.CTkFrame(self._history_frame, fg_color=t["bg_header"],
-                           corner_radius=0, height=48)
-        hdr.pack(fill="x")
-        hdr.pack_propagate(False)
-        hdr.bind("<ButtonPress-1>", self._drag_start)
-        hdr.bind("<B1-Motion>",     self._drag_move)
-
-        ctk.CTkButton(hdr, text="←", width=36, height=28, corner_radius=8,
-                      fg_color="transparent", hover_color=t["hover_neutral"],
-                      text_color=t["icon_btn"], font=("Segoe UI", 15),
-                      command=self._show_main).pack(side="left", padx=(8, 0))
-        ctk.CTkLabel(hdr, text="What you said", font=("Segoe UI Semibold", 15),
-                     text_color=t["text_title"]).pack(side="left", padx=(4, 0))
-        ctk.CTkButton(hdr, text="✕", width=32, height=28, corner_radius=8,
-                      fg_color="transparent", hover_color=t["hover_close"],
-                      text_color=t["icon_btn"], font=("Segoe UI", 13),
-                      command=self._on_close).pack(side="right", padx=(0, 8))
-
-        # No border and the window's own background: the view is the panel.
-        self._log = ctk.CTkTextbox(self._history_frame,
-                                   font=("Consolas", 11), fg_color=t["bg_root"],
-                                   text_color=t["text_body"],
-                                   border_width=0, corner_radius=0,
-                                   wrap="word", state="disabled")
-        self._log.pack(fill="both", expand=True, padx=14, pady=(6, 12))
-        # "said" is what you dictated, and it is the one thing here meant to be
-        # read as prose, so it gets plain body text. The brand colour is saved
-        # for the short confirmations, where it reads as a mark rather than
-        # painting every line on screen.
-        for name, color in (("ok", t["log_ok"]), ("error", t["log_error"]),
-                            ("dim", t["log_dim"]), ("said", t["text_body"])):
-            try:
-                self._log.tag_config(name, foreground=color)
-            except Exception:
-                pass
-        self._restore_log()
 
     def _set_hold_enabled(self, enabled):
         """Grey out the keycap while the key does nothing.
@@ -1451,70 +1463,6 @@ class KaraApp(ctk.CTk):
             text_color=t["text_body"] if enabled else t["text_hint"],
             fg_color=t["bg_button"] if enabled else "transparent",
         )
-
-    # ── The stage's text ──────────────────────────────────────────────────────
-    # Two entry points on purpose. _stage_type animates, and is what a fresh
-    # transcription gets. _stage_show just puts the text there, and is what a
-    # theme rebuild gets, because re-typing the same sentence every time someone
-    # touches the theme switch would be a party trick rather than feedback.
-
-    CARET = "▏"          # a thin bar, the same idea as the caret on the site
-    TYPE_MS_MAX = 26          # per character, matching the website's demo
-    TYPE_TOTAL_MS = 1100      # ...but never let the whole thing run longer
-
-    def _stage_cancel(self):
-        """Stop any animation mid-flight.
-
-        Every path that replaces the stage's contents calls this first. An
-        after() callback still queued against a widget that _rebuild_ui has
-        already destroyed is a traceback in the Tk main loop, and the two ways
-        to get one -- switching theme while it types, or starting a second
-        recording before the first finished -- are both easy to hit by hand.
-        """
-        for attr in ("_type_job", "_caret_job"):
-            job = getattr(self, attr, None)
-            if job is not None:
-                try:
-                    self.after_cancel(job)
-                except Exception:
-                    pass
-                setattr(self, attr, None)
-
-    def _stage_show(self, text):
-        """Put the finished text on the stage, no animation."""
-        self._stage_cancel()
-        self._stage_text = text
-        self._stage_label.configure(text=text)
-
-    def _stage_type(self, text):
-        """Reveal the text one character at a time, with a caret in front."""
-        self._stage_cancel()
-        self._stage_text = text
-        if not text:
-            self._stage_label.configure(text="")
-            return
-
-        # A fixed 26ms per character reads beautifully on a demo sentence and
-        # absurdly on a long one: 200 characters would spend five seconds
-        # spelling out something already pasted into the other window. So the
-        # per-character delay shrinks to fit a fixed budget instead.
-        step = max(4, min(self.TYPE_MS_MAX, self.TYPE_TOTAL_MS // len(text)))
-
-        def tick(i=1):
-            self._type_job = None
-            self._stage_label.configure(text=text[:i] + self.CARET)
-            if i < len(text):
-                self._type_job = self.after(step, tick, i + 1)
-            else:
-                self._blink_caret(True)
-
-        tick()
-
-    def _blink_caret(self, on):
-        """Blink the caret once the sentence has landed."""
-        self._caret_job = None
-        self._stage_label.configure(text=self._stage_text + (self.CARET if on else " "))
-        self._caret_job = self.after(530, self._blink_caret, not on)
 
     def _build_settings(self):
         t = self.theme
@@ -1722,18 +1670,13 @@ class KaraApp(ctk.CTk):
         # Before the widgets go: a queued type or caret callback would come back
         # to a destroyed label and raise inside Tk's main loop. _build_main puts
         # the text back afterwards, whole rather than typed again.
-        self._stage_cancel()
         self.configure(fg_color=self.theme["bg_root"])
         self._main_frame.destroy()
         self._settings_frame.destroy()
-        self._history_frame.destroy()
         self._build_main()
         self._build_settings()
-        self._build_history()
         if keep_view == "settings":
             self._show_settings()
-        elif keep_view == "history":
-            self._show_history()
         else:
             self._show_main()
 
@@ -1851,7 +1794,7 @@ class KaraApp(ctk.CTk):
             pass
 
     def _hide_all(self):
-        for name in ("_main_frame", "_settings_frame", "_history_frame"):
+        for name in ("_main_frame", "_settings_frame"):
             frame = getattr(self, name, None)
             if frame is not None:
                 frame.pack_forget()
@@ -1867,11 +1810,6 @@ class KaraApp(ctk.CTk):
         self._settings_frame.pack(fill="both", expand=True)
         self._view = "settings"
 
-    def _show_history(self):
-        self._hide_all()
-        self._history_frame.pack(fill="both", expand=True)
-        self._log.see("end")
-        self._view = "history"
 
     # ── Drag ──────────────────────────────────────────────────────────────────
     def _drag_start(self, e):
@@ -2021,8 +1959,6 @@ class KaraApp(ctk.CTk):
                     self._status.configure(text=msg[1], text_color=msg[2])
                 elif msg[0] == "log":
                     self._append_log(msg[1], msg[2])
-                elif msg[0] == "said":
-                    self._stage_type(msg[1])
                 elif msg[0] == "model_ready":
                     self._set_meter("idle")
                     d, c, m = msg[1], msg[2], msg[3]
@@ -2052,10 +1988,6 @@ class KaraApp(ctk.CTk):
         if is_rec:
             self._dot.configure(image=mark_image("recording"))
             self._stage_mark.configure(image=mark_image("recording", 13))
-            # The stage clears the moment you start talking: leaving the previous
-            # sentence up while a new one is being spoken makes it look like the
-            # app heard the wrong thing.
-            self._stage_show("")
             self._status.configure(text="LISTENING", text_color=t["rec_status_text"])
             self._set_meter("recording")
         else:
