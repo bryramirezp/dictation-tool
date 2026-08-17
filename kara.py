@@ -2040,6 +2040,24 @@ class KaraApp(ctk.CTk):
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
+def _seed_demo_log():
+    """Fill the history with a sample session, for KARA_DEMO_LOG only."""
+    app_gui._log_lines = []
+    app_gui._log.configure(state="normal")
+    app_gui._log.delete("1.0", "end")
+    app_gui._log.configure(state="disabled")
+    for text, tag in [
+        ("Ready to use.", "dim"),
+        ("Recorded 2.8s", "dim"),
+        ("Send me the report before Friday, please.", "said"),
+        ("Recorded 2.1s", "dim"),
+        ("I'll call you back in about ten minutes.", "said"),
+        ("Recorded 3.4s", "dim"),
+        ("Remember to buy coffee on the way home.", "said"),
+    ]:
+        app_gui._append_log(text, tag)
+
+
 def main():
     global app_gui, _current_hotkey_str
 
@@ -2074,6 +2092,14 @@ def main():
     ).start()
 
     ui_queue.put(("log", f"Microphone: {current_mic_name()}", "dim"))
+
+    # The website's screenshots need a window with something in it, and an empty
+    # history photographs badly. KARA_DEMO_LOG fills it with a plausible session
+    # so tools/screenshots.py can photograph the real UI rather than a mockup --
+    # real widgets, real fonts, real spacing, sample sentences. Never set in
+    # normal use, and it only ever writes to the log.
+    if os.environ.get("KARA_DEMO_LOG"):
+        app_gui.after(1200, _seed_demo_log)
 
     mouse_listener = MouseListener(on_click=on_mouse_click)
     mouse_listener.start()

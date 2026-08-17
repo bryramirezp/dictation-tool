@@ -112,21 +112,17 @@
       · <a href="https://github.com/bryramirezp/kara/releases/latest">All files and release notes</a>
     </p>
 
+    <!-- The app itself, photographed. This used to be a CSS mockup that typed
+         out invented sentences on a loop: pretty, and a drawing of a product
+         rather than the product. Whatever someone decides from this page, they
+         should decide it having seen the real window. -->
     <div class="demo">
-      <div class="stage" id="stage">
-        <div class="stage-bar">
-          <span class="dot" id="dot"></span>
-          <span id="stageTitle">Any app you are typing in</span>
-        </div>
-        <div class="stage-body">
-          <p class="typed"><span id="typed"></span><span class="caret"></span></p>
-        </div>
-        <div class="stage-foot">
-          <span class="keycap">INSERT</span>
-          <span class="wave" id="wave" aria-hidden="true"></span>
-          <span class="phase" id="phase">READY</span>
-        </div>
-      </div>
+      <img class="app-shot on-dark"  src="screenshot-main-dark.png"
+           alt="The Kara window, listing sentences that have been dictated"
+           width="320" height="480">
+      <img class="app-shot on-light" src="screenshot-main-light.png"
+           alt="The Kara window, listing sentences that have been dictated"
+           width="320" height="480">
     </div>
 
     <div class="proof">
@@ -289,69 +285,16 @@ launch.bat</pre>
 
 <script>
 (function () {
-  // Twenty-four bars for the level meter, built here so the markup stays clean.
-  var wave = document.getElementById('wave');
-  for (var i = 0; i < 24; i++) {
-    var bar = document.createElement('i');
-    bar.style.animationDelay = (i * 0.045).toFixed(3) + 's';
-    wave.appendChild(bar);
-  }
-
-  var stage  = document.getElementById('stage');
-  var out    = document.getElementById('typed');
-  var phase  = document.getElementById('phase');
-  var dot    = document.getElementById('dot');
-  var lines  = [
-    'Send me the report before Friday, please.',
-    "I'll call you back in about ten minutes.",
-    'Remember to buy coffee on the way home.'
-  ];
-  var n = 0;
-
-  var still = window.matchMedia('(prefers-reduced-motion: reduce)');
-  if (still.matches) {                    // no looping animation; show the point
-    out.textContent = lines[0];
-    phase.textContent = 'TYPED';
-    return;
-  }
-
-  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
-
-  async function cycle() {
-    for (;;) {
-      out.textContent = '';
-      phase.textContent = 'READY';
-      dot.classList.remove('live');
-      await wait(900);
-
-      stage.classList.add('rec');          // key held: the meter comes alive
-      phase.textContent = 'LISTENING';
-      dot.classList.add('live');
-      await wait(1900);
-
-      stage.classList.remove('rec');
-      phase.textContent = 'WRITING';
-      await wait(420);
-
-      var text = lines[n % lines.length];
-      n++;
-      for (var i = 1; i <= text.length; i++) {
-        out.textContent = text.slice(0, i);
-        await wait(26);
-      }
-      phase.textContent = 'TYPED';
-      dot.classList.remove('live');
-      await wait(2600);
-    }
-  }
-  cycle();
-
   // The sticky bar only earns its place once the hero button has scrolled away.
+  // This is all that is left of a much longer script: the rest drove a mockup
+  // of the app that a screenshot of the app now replaces.
   var bar = document.getElementById('topbar');
   var btn = document.getElementById('heroBtn');
-  new IntersectionObserver(function (entries) {
-    bar.classList.toggle('show', !entries[0].isIntersecting);
-  }, { rootMargin: '-10px 0px 0px 0px' }).observe(btn);
+  if (bar && btn) {
+    new IntersectionObserver(function (entries) {
+      bar.classList.toggle('show', !entries[0].isIntersecting);
+    }, { rootMargin: '-10px 0px 0px 0px' }).observe(btn);
+  }
 })();
 </script>
 <script src="theme.js"></script>

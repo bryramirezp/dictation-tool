@@ -4,9 +4,9 @@
    near-black text on top, it is 11.77:1 either way -- and wherever it has to be
    read as text it drops to #5c7615, the same hue at 5.18:1 on white. That is
    what --accent-text is for. The dividing line is size: anything thin enough
-   to be read as a mark -- the caret, the meter bars, a 2px rule -- is ink and
-   uses --accent-text. Only areas big enough to carry near-black text on top
-   stay --lime: the button, the step numbers, the pressed key.
+   to be read as a mark -- a link, a 2px rule, an eyebrow -- is ink and uses
+   --accent-text. Only areas big enough to carry near-black text on top stay
+   --lime: the download button and the step numbers.
    ───────────────────────────────────────────────────────────────────────── */
 :root, :root[data-theme="dark"] {
   --lime:        #abdb25;
@@ -140,61 +140,27 @@ section { padding: 92px 0; border-top: 1px solid var(--line); }
 .sub { color: var(--muted); font-size: .87rem; margin: 1.1em 0 0; }
 .sub a { color: var(--muted); }
 
-/* ── The demo: the page doing what the product does ───────────────────────── */
-.demo { margin: 62px auto 0; max-width: 640px; text-align: left; }
-.stage {
-  background: var(--panel); border: 1px solid var(--line);
-  border-radius: 14px; overflow: hidden;
-}
-.stage-bar {
-  display: flex; align-items: center; gap: 8px;
-  padding: 11px 15px; border-bottom: 1px solid var(--line);
-  background: var(--panel-2);
-  font: .78rem/1 var(--mono); color: var(--quiet);
-}
-.stage-bar .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line-hi); }
-.stage-bar .dot.live { background: var(--accent-text); }
-.stage-body { padding: 30px 26px 26px; min-height: 148px; }
+/* ── The hero shot ────────────────────────────────────────────────────────
+   The app, photographed, where a CSS mockup of the app used to animate. The
+   mockup carried a stage, a caret, a level meter and a keycap, all of which
+   existed only here; they are gone with it.
 
-.typed {
-  font: 1.12rem/1.6 var(--sans); color: var(--title);
-  margin: 0; min-height: 3.2em;
+   A drop shadow and nothing else. The PNG already has its corners cut to
+   transparency (see tools/screenshots.py), so a border or a radius here would
+   fight the shape rather than follow it.
+   ────────────────────────────────────────────────────────────────────────── */
+.demo { margin: 58px auto 0; max-width: 320px; }
+.app-shot, .shots img {
+  display: block; width: 100%; height: auto;
+  filter: drop-shadow(0 18px 40px rgba(0, 0, 0, .5));
 }
-.caret {
-  display: inline-block; width: 2px; height: 1.1em; margin-left: 2px;
-  background: var(--accent-text); vertical-align: -.16em;
-  animation: blink 1.06s step-end infinite;
+:root[data-theme="light"] .app-shot,
+:root[data-theme="light"] .shots img {
+  filter: drop-shadow(0 18px 40px rgba(0, 0, 0, .22));
 }
-@keyframes blink { 50% { opacity: 0; } }
-
-.stage-foot {
-  display: flex; align-items: center; gap: 16px;
-  padding: 14px 26px 20px;
-  border-top: 1px solid var(--line);
-}
-.keycap {
-  font: 600 .78rem/1 var(--mono); color: var(--muted);
-  padding: 9px 14px; border-radius: 7px;
-  background: var(--panel-2); border: 1px solid var(--line-hi);
-  border-bottom-width: 3px; transition: all .12s ease;
-}
-.rec .keycap {
-  color: var(--ink); background: var(--lime);
-  border-color: var(--lime); border-bottom-width: 1px;
-  transform: translateY(2px);
-}
-.wave { display: flex; align-items: center; gap: 3px; height: 26px; flex: 1; }
-.wave i {
-  width: 3px; height: 4px; border-radius: 2px;
-  background: var(--line-hi); display: block;
-}
-.rec .wave i { background: var(--accent-text); animation: bounce .62s ease-in-out infinite; }
-@keyframes bounce { 0%, 100% { height: 4px; } 50% { height: 22px; } }
-.phase { font: .76rem/1 var(--mono); color: var(--quiet); letter-spacing: .06em; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .caret, .rec .wave i { animation: none; }
 }
 
 /* ── Proof strip ──────────────────────────────────────────────────────────── */
@@ -226,7 +192,10 @@ section { padding: 92px 0; border-top: 1px solid var(--line); }
 /* ── Shots ────────────────────────────────────────────────────────────────── */
 .shots { display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; }
 .shots figure { margin: 0; }
-.shots img { width: 270px; border: 1px solid var(--line); border-radius: 12px; display: block; }
+/* No border, no radius: the PNGs carry their own rounded corners as alpha
+   (tools/screenshots.py cuts them), so a rectangle drawn around one would
+   run straight across the curve. A shadow follows the shape instead. */
+.shots img { width: 270px; display: block; }
 .shots figcaption { color: var(--quiet); font-size: .8rem; margin-top: .7em; text-align: center; }
 
 /* ── Table ────────────────────────────────────────────────────────────────── */
