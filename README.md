@@ -11,7 +11,7 @@ No account, no cloud, no subscription.
 
 <img src="docs/screenshot-main-dark.png" alt="The main window" width="300">
 
-[**Download for Windows**](https://github.com/bryramirezp/kara/releases/latest/download/Kara-Setup.exe)
+[**Download for Windows**](https://github.com/bryramirezp/kara/releases/download/v0.2.4/Kara-Setup-0.2.4.exe)
  · [Website](https://bryramirezp.github.io/kara/)
  · [All files](https://github.com/bryramirezp/kara/releases/latest)
 
@@ -45,7 +45,7 @@ that. It dictates text, and that part is free and works with no connection.
 
 ## Download
 
-**[Download the installer](https://github.com/bryramirezp/kara/releases/latest/download/Kara-Setup.exe)**
+**[Download the installer](https://github.com/bryramirezp/kara/releases/download/v0.2.4/Kara-Setup-0.2.4.exe)**
 — <!--dl-size-->72 MB<!--/dl-size-->, for Windows 10 and 11. The link starts the download straight away.
 
 Run it and you are done. You do not need to install Python or anything else.

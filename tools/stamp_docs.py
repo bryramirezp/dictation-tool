@@ -90,6 +90,27 @@ def rules(ver, mb):
          r"\g<1>%s\g<2>" % ver),
     ]
 
+    # ── The download links ───────────────────────────────────────────────────
+    # These used to point at releases/latest/download/Kara-Setup.exe, a copy of
+    # the installer under a name that never changes, so the button never needed
+    # editing. The cost was the filename: everybody downloaded "Kara-Setup.exe"
+    # with no clue which version it was, and a Downloads folder full of them is
+    # indistinguishable.
+    #
+    # So the links carry the version now, and keeping them working is this
+    # script's job -- which is only safe because the release workflow runs
+    # --check before it builds, and refuses to publish a release whose download
+    # button points at the previous one.
+    # The character classes exclude whitespace and a closing paren, not just a
+    # quote. Markdown does not quote its URLs -- they sit inside ](...) -- and a
+    # class of "anything but a quote" matches newlines, so the first attempt ran
+    # from the first link in the README to the last ".exe" in the file and ate
+    # the thirty-four lines in between.
+    URL = (r"(https://github\.com/bryramirezp/kara/releases/download/)"
+           r"v[^/\s\"')]+(/Kara-Setup-)[^\s\"')]+(\.exe)")
+    for rel in ("README.md", "docs/index.html", "docs/install.html"):
+        r.append((rel, URL, r"\g<1>v%s\g<2>%s\g<3>" % (ver, ver)))
+
     if mb is not None:
         size = "%d MB" % mb
         r += [

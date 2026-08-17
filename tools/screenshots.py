@@ -9,10 +9,13 @@ day showing an app that no longer existed. Taking them by hand is what made that
 possible, so this does the whole round -- set the theme, launch, wait, find the
 window, capture, restore the theme -- and can be re-run after any UI change.
 
-The window has rounded corners now, and a rectangular grab of the screen would
-carry four little wedges of whatever was behind it. So the corners are cut out
-to transparency afterwards, at the radius Windows itself uses, and the PNGs go
-out with an alpha channel that sits cleanly on either theme of the page.
+The window has rounded corners now, and a rectangular grab of the screen carries
+four little wedges of whatever was behind it. Rather than cut them at a radius --
+which was tried, and left a crescent of desktop in every corner because DWM's
+radius is not the one that was guessed -- the app is photographed twice, over
+black and over white, and the true transparency is solved from the pair. See
+matte(). The PNGs go out with an alpha channel that sits cleanly on either theme
+of the page.
 
 Requires the app's own dependencies, because it runs the app. Your own theme
 setting is put back at the end, including if this crashes.
@@ -30,10 +33,6 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOCS = os.path.join(ROOT, "docs")
 APP_DIR = os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "Kara")
 SETTINGS = os.path.join(APP_DIR, "settings.json")
-
-# Windows 11 rounds a small window at 8 device-independent pixels.
-CORNER_R = 8
-
 
 def read_settings():
     try:
@@ -140,24 +139,79 @@ def find_hwnd(pid):
 
 
 def grab(rect):
-    import ctypes
-    from ctypes import wintypes
     # Screen grab through PIL rather than GDI: the window is composited, and a
     # PrintWindow of a Tk canvas comes back with holes in it.
     from PIL import ImageGrab
-    return ImageGrab.grab(bbox=rect, all_screens=True).convert("RGBA")
+    return ImageGrab.grab(bbox=rect, all_screens=True).convert("RGB")
 
 
-def round_corners(img, radius):
-    """Cut the corners to transparency so the shot has no desktop in it."""
-    from PIL import ImageDraw
-    ss = 4
-    mask = Image.new("L", (img.width * ss, img.height * ss), 0)
-    ImageDraw.Draw(mask).rounded_rectangle(
-        (0, 0, mask.width - 1, mask.height - 1), radius=radius * ss, fill=255)
-    mask = mask.resize(img.size, Image.LANCZOS)
-    out = img.copy()
-    out.putalpha(mask)
+def backdrop(colour):
+    """A fullscreen sheet of one colour, behind the app."""
+    exe = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
+    if not os.path.exists(exe):
+        exe = sys.executable
+    p = subprocess.Popen([exe, os.path.join(ROOT, "tools", "_backdrop.py"), colour])
+    time.sleep(1.4)
+    return p
+
+
+def raise_app(pid):
+    """Put the app back on top of the backdrop, which is topmost too."""
+    import ctypes
+    hwnd = find_hwnd(pid)
+    if hwnd:
+        # HWND_TOPMOST, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE
+        ctypes.windll.user32.SetWindowPos(hwnd, -1, 0, 0, 0, 0,
+                                          0x0002 | 0x0001 | 0x0010)
+        time.sleep(0.4)
+
+
+def matte(over_black, over_white):
+    """Recover the real transparency by photographing the window twice.
+
+    The first version of this cut the corners to a guessed 8px radius. DWM's
+    radius is not 8, so a crescent of desktop survived in each corner -- 146
+    distinct colours around a one-pixel border, none of them the app's.
+
+    Guessing a better number would be the same mistake with a different value,
+    so nothing is guessed. A pixel composited over black and again over white
+    gives two equations: black = colour*a, white = colour*a + 255*(1-a). Their
+    difference is 255*(1-a) and depends on nothing else, so the alpha falls out
+    exactly -- including the part-covered pixels along the curve, which is what
+    makes the edge look drawn rather than cut.
+    """
+    b = over_black.load()
+    w = over_white.load()
+    W, H = over_black.size
+    out = Image.new("RGBA", (W, H))
+    o = out.load()
+    for y in range(H):
+        for x in range(W):
+            br, bg, bb = b[x, y]
+            wr, wg, wb = w[x, y]
+            # One alpha per pixel, from the mean of the three channels: the
+            # difference is the same in each for a grey-agnostic compositor, and
+            # averaging shrugs off a stray bit of rounding.
+            a = 255 - ((wr - br) + (wg - bg) + (wb - bb)) / 3.0
+            a = max(0.0, min(255.0, a))
+            if a < 8:                      # shadow fringe, not window
+                o[x, y] = (0, 0, 0, 0)
+                continue
+            k = 255.0 / a
+            o[x, y] = (min(255, int(br * k + .5)),
+                       min(255, int(bg * k + .5)),
+                       min(255, int(bb * k + .5)),
+                       int(a + .5))
+
+    # A backdrop that covers the app instead of sitting behind it makes both
+    # shots a flat sheet, the difference 255 everywhere, and every pixel
+    # transparent. That happened, and it wrote four blank PNGs without
+    # complaining. It cannot do that twice.
+    opaque = sum(1 for y in range(0, H, 4) for x in range(0, W, 4)
+                 if o[x, y][3] > 200)
+    if opaque < (W // 4) * (H // 4) * 0.5:
+        raise SystemExit("the matte came out mostly transparent -- the backdrop "
+                         "was probably in front of the app, not behind it")
     return out
 
 
@@ -192,7 +246,15 @@ def shoot(theme, view, out_name, saved):
     import ctypes
     ctypes.windll.user32.SetCursorPos(10, 10)
     time.sleep(0.4)
-    img = round_corners(grab(rect), CORNER_R)
+
+    shots = {}
+    for name, colour in (("black", "000000"), ("white", "ffffff")):
+        sheet = backdrop(colour)
+        raise_app(proc.pid)
+        shots[name] = grab(find_window(proc.pid) or rect)
+        sheet.terminate()
+        time.sleep(0.5)
+    img = matte(shots["black"], shots["white"])
     check(img, view)
     path = os.path.join(DOCS, out_name)
     img.save(path)
