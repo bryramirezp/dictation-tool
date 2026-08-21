@@ -1,7 +1,7 @@
 """Build everything a release ships.
 
     py -3 packaging/build.py           the ordinary installer
-    py -3 packaging/build.py --gpu     the NVIDIA one, about 1.2 GB
+    py -3 packaging/build.py --gpu     the NVIDIA one, about 570 MB
 
 Leaves in dist/:
     Kara-Setup-<version>.exe          the installer
@@ -58,8 +58,8 @@ def build_exe(gpu):
         env["KARA_GPU"] = "1"
     else:
         # Explicitly cleared rather than merely absent: a shell where it was set
-        # for an earlier build would otherwise produce a 1.2 GB file named as
-        # the small one, and nothing downstream would notice.
+        # for an earlier build would otherwise produce the 570 MB file under
+        # the small one's name, and nothing downstream would notice.
         env.pop("KARA_GPU", None)
     # The previous flavour's files are still in there and PyInstaller does not
     # remove what it no longer produces.
@@ -141,7 +141,8 @@ def stamp_docs():
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--gpu", action="store_true",
-                    help="carry the CUDA libraries (about 1.2 GB)")
+                    help="carry the CUDA libraries: 570 MB to download, "
+                         "1.2 GB installed")
     args = ap.parse_args()
     gpu = args.gpu
 
@@ -158,8 +159,9 @@ def main():
     # The alias is byte for byte the versioned file, so one hash covers both.
     write_hashes(ver, [setup, zip_path], gpu)
     print(f"  ({os.path.basename(alias)} is a copy of {os.path.basename(setup)})")
-    # Only the ordinary build's size is quoted anywhere, and stamping from the
-    # GPU one would put 1.2 GB on the page everybody lands on.
+    # The page quotes both sizes, but only once both files exist. Stamping
+    # here, from a run that has built one of the two, would write whichever it
+    # just made into both places.
     if not gpu:
         stamp_docs()
 

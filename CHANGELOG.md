@@ -18,8 +18,8 @@ that nobody, the developer included, could tell what they were actually running.
 ### Added
 
 - **A second installer, for NVIDIA cards.** `Kara-Setup-GPU` carries the CUDA
-  libraries, which is why it weighs about 1.2 GB against 72 MB, and on a card it
-  is not a small difference. Nothing else is needed: no CUDA Toolkit, no separate
+  libraries, which is why it weighs about 570 MB against 72 MB, and on a card
+  it is not a small difference. Nothing else is needed: no CUDA Toolkit, no separate
   download, just a current driver. Either installer can be run over the other and
   they share their settings. AMD and Intel cards are still not supported, because
   ctranslate2 has no backend for them on Windows.

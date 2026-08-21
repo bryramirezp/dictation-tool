@@ -52,7 +52,7 @@ that. It dictates text, and that part is free and works with no connection.
 Have an NVIDIA graphics card? There is a second, much larger installer that
 carries the CUDA libraries with it:
 **[Download the GPU installer](https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-GPU-0.3.0.exe)**
-— <!--dl-size-gpu-->1200 MB<!--/dl-size-gpu-->. Same app, same settings; it just
+— <!--dl-size-gpu-->572 MB<!--/dl-size-gpu-->. Same app, same settings; it just
 also knows how to use the card. Take the ordinary one if you are not sure — it
 works everywhere, and you can install the other over the top of it later.
 
@@ -99,7 +99,7 @@ the `F13`–`F24` keys, or a side button on your mouse.
 
 There are two installers. The ordinary one runs on your processor: it is small,
 it works on any machine, and on a long dictation it is the slow one. The GPU
-installer carries the CUDA libraries, which is why it is about fifteen times
+installer carries the CUDA libraries, which is why it is about eight times
 larger, and on an NVIDIA card it is not a small difference.
 
 If you have an NVIDIA card, take
