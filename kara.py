@@ -874,6 +874,14 @@ stream             = None      # open only while recording
 stream_samplerate  = SAMPLE_RATE
 input_level        = 0.0       # 0..1, written by the audio thread for the meter
 
+# Set only by tools/capture_demo.py, never in normal use. Points at a JSON file
+# to fill with one real recording's waveform envelope, text and timing, so the
+# website's hero animation can replay a genuine dictation instead of an
+# invented one. capture_record_end_ts marks the moment recording stopped, so
+# _transcribe can measure the real gap before the paste.
+_CAPTURE_DEMO_PATH   = os.environ.get("KARA_CAPTURE_DEMO")
+_capture_record_end_ts = None
+
 _current_hotkey_str = "key:insert"   # updated from settings at startup / apply
 _trigger_down       = False           # tracks press state regardless of kind
 _capturing_hotkey   = False           # True while waiting for capture input
@@ -1056,6 +1064,39 @@ def audio_callback(indata, frames, time_info, status):
         # the meter instead of hugging the floor.
         input_level = min(1.0, max(0.0, (db + 55.0) / 45.0))
 
+def _write_capture_demo(audio_data, dur, text, buckets=100):
+    """Write one real recording's envelope, text and timing to KARA_CAPTURE_DEMO.
+
+    Only ever called when that env var is set (tools/capture_demo.py). Failure
+    here must never break a real dictation, so every error is swallowed.
+    """
+    try:
+        n = len(audio_data)
+        edges = np.linspace(0, n, buckets + 1).astype(int)
+        levels = []
+        for i in range(buckets):
+            seg = audio_data[edges[i]:edges[i + 1]]
+            levels.append(float(np.sqrt(np.mean(np.square(seg), dtype=np.float64))) if len(seg) else 0.0)
+        peak = max(levels) or 1.0
+        waveform = [round(min(1.0, v / peak), 4) for v in levels]
+
+        gap_ms = 0
+        if _capture_record_end_ts is not None:
+            gap_ms = round(max(0.0, (time.time() - _capture_record_end_ts) * 1000.0))
+
+        payload = {
+            "capturedAt": datetime.date.today().isoformat(),
+            "text": text,
+            "listenMs": round(dur * 1000.0),
+            "waveform": waveform,
+            "gapMs": gap_ms,
+        }
+        with open(_CAPTURE_DEMO_PATH, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+    except Exception:
+        pass
+
+
 def _idle_status():
     return karai18n.t("status_ready")
 
@@ -1171,6 +1212,9 @@ def stop_and_transcribe():
     # How much speech actually landed, against how long the key was down: the
     # gap between the two is audio lost to the microphone still waking up.
     trace.set(audio_s=round(dur, 2))
+    if _CAPTURE_DEMO_PATH:
+        global _capture_record_end_ts
+        _capture_record_end_ts = time.time()
     threading.Thread(target=_transcribe, args=(data, sr), daemon=True).start()
 
 def _transcribe(audio_data, sr):
@@ -1266,6 +1310,8 @@ def _transcribe(audio_data, sr):
                 # loss, but a useful thing to be holding rather than nothing.
                 prev = pyperclip.paste() if _clipboard_has_text() else None
                 pyperclip.copy(text)
+                if _CAPTURE_DEMO_PATH:
+                    _write_capture_demo(audio_data, dur, text)
                 pyautogui.hotkey("ctrl", "v")
                 time.sleep(0.3)  # let the target app read the clipboard before restore
                 if prev is not None:

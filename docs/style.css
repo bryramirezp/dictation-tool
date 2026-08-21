@@ -195,7 +195,7 @@ section { padding: 92px 0; border-top: 1px solid var(--line); }
    transparency (see tools/screenshots.py), so a border or a radius here would
    fight the shape rather than follow it.
    ──────────────────────────────────────────────────────────────────────── */
-.demo { margin: 58px auto 0; max-width: 320px; }
+.demo { margin: 40px auto 0; max-width: 320px; }
 .app-shot, .shots img {
   display: block; width: 100%; height: auto;
   filter: drop-shadow(0 18px 40px rgba(0, 0, 0, .5));
@@ -205,8 +205,88 @@ section { padding: 92px 0; border-top: 1px solid var(--line); }
   filter: drop-shadow(0 18px 40px rgba(0, 0, 0, .22));
 }
 
+/* ── The redrawn window ────────────────────────────────────────────────────
+   Kara's own chrome, redrawn -- not the site's panel colours, the exact ones
+   from kara.py's THEMES (bg_root/bg_header/text_title/log_dim/rec_status_text
+   etc.), so it reads as the app rather than as a page decoration wearing its
+   colours. Still a drawing, not a screenshot: what makes that honest is that
+   demo.js only ever plays back a real capture (tools/capture_demo.py) with
+   the app's own real wording ("Recorded 3.6s", "WRITING IT DOWN") -- nothing
+   here is invented, only redrawn. Hidden by default; demo.js reveals it once
+   real data has loaded and motion is okay.
+   ──────────────────────────────────────────────────────────────────────── */
+.win-fake {
+  --k-bg:      #0f0f0f;  --k-header: #181818;  --k-title: #ffffff;
+  --k-body:    #cccccc;  --k-dim:    #666666;  --k-idle-bar: #333333;
+  --k-accent:  #abdb25;  --k-rec:    #ef4141;  --k-icon: #cccccc;
+  --k-key-bg:  #1f1f1f;
+  max-width: 320px; margin: 0 auto; text-align: left;
+  background: var(--k-bg); border-radius: 10px; overflow: hidden;
+  filter: drop-shadow(0 18px 40px rgba(0, 0, 0, .5));
+}
+:root[data-theme="light"] .win-fake {
+  --k-bg:      #ffffff;  --k-header: #f2f2f2;  --k-title: #333333;
+  --k-body:    #595959;  --k-dim:    #8a8a8a;  --k-idle-bar: #cccccc;
+  --k-accent:  #5c7615;  --k-rec:    #c52c1f;  --k-icon: #595959;
+  --k-key-bg:  #f2f2f2;
+  filter: drop-shadow(0 18px 40px rgba(0, 0, 0, .22));
+}
+.win-fake-bar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 11px 4px 11px 12px; background: var(--k-header);
+  font: 600 15px var(--sans); color: var(--k-title);
+}
+.win-fake-mark { width: 20px; height: 20px; flex: none; }
+.win-fake-title { flex: 1; }
+.win-fake-icons {
+  font-size: 13px; letter-spacing: 6px; color: var(--k-icon); padding-right: 8px;
+}
+.win-fake-model {
+  display: flex; align-items: center; gap: 7px;
+  padding: 14px 20px 0; font: 9px var(--sans); color: var(--k-dim);
+}
+.win-fake-model .win-fake-mark { width: 15px; height: 15px; }
+.win-fake-log { padding: 14px 16px 6px; min-height: 84px; }
+.win-fake-log p { margin: 0; }
+.win-fake-said {
+  font: 11px/1.5 var(--sans); color: var(--k-title); margin: 6px 0 4px !important;
+}
+.win-fake-dim { font: 9px var(--sans); color: var(--k-dim); }
+.win-fake-foot {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 20px 16px;
+}
+.win-fake-key {
+  font: 700 9px var(--mono); color: var(--k-body); background: var(--k-key-bg);
+  border-radius: 8px; padding: 3px 8px; flex: none;
+}
+.win-fake-bars {
+  flex: 1; min-width: 0; overflow: hidden;
+  display: flex; align-items: center; gap: 3px; height: 26px;
+}
+.win-fake-bars i {
+  flex: 1; min-width: 0; min-height: 2px; border-radius: 2px;
+  background: var(--k-idle-bar);
+}
+.win-fake.is-listening .win-fake-bars i { background: var(--k-accent); }
+.win-fake-status-wrap { display: flex; align-items: center; gap: 5px; flex: none; }
+.win-fake-rec-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: transparent;
+  transition: background .15s ease;
+}
+.win-fake.is-listening .win-fake-rec-dot { background: var(--k-rec); }
+.win-fake-status {
+  font: 700 9px var(--mono); letter-spacing: .03em; color: var(--k-dim);
+}
+.win-fake.is-listening .win-fake-status { color: var(--k-rec); }
+.demo-caption { margin: 14px 0 0; font-size: .8rem; color: var(--quiet); text-align: center; }
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+  /* Backstop alongside demo.js's own check: whatever state the script left
+     things in, a reader who asked for less motion never sees it play. */
+  .win-fake { display: none !important; }
+  .app-shot-group { display: block !important; }
 }
 
 /* ── Proof strip ──────────────────────────────────────────────────────────── */

@@ -108,6 +108,58 @@
       Hold a key, say it out loud, let go. Your words land in whatever app you
       are using. No internet, no account, no subscription.
     </p>
+
+    <!-- The app itself, photographed, first thing -- before anyone is asked to
+         pick a download. This used to be a CSS mockup that typed out invented
+         sentences on a loop: pretty, and a drawing of a product rather than
+         the product. It stays the fallback here: if docs/demo.js can't load
+         docs/demo-data.json, or the visitor has asked for reduced motion,
+         these two images are all that render, unchanged from before.
+
+         When it can run, demo.js swaps in the redraw below it -- the same
+         header, log and foot as the real window, coloured from the exact
+         values in kara.py's THEMES -- and replays one real dictation: real
+         microphone, real transcription, real "Recorded 3.6s"/"WRITING IT
+         DOWN" wording, captured once on Bryan's own machine by
+         tools/capture_demo.py. It is still a drawing, not the window itself,
+         but everything it plays back happened -- nothing here is typed
+         because it looks good, only because it was said. -->
+    <div class="demo" data-demo>
+      <div class="app-shot-group" data-demo-shots>
+        <img class="app-shot on-dark"  src="screenshot-main-dark.png"
+             alt="The Kara window, listing sentences that have been dictated"
+             width="320" height="480">
+        <img class="app-shot on-light" src="screenshot-main-light.png"
+             alt="The Kara window, listing sentences that have been dictated"
+             width="320" height="480">
+      </div>
+      <div class="win-fake" data-demo-anim hidden aria-hidden="true">
+        <div class="win-fake-bar">
+          <img class="win-fake-mark" src="logo.png" alt="">
+          <span class="win-fake-title">Kara</span>
+          <span class="win-fake-icons" aria-hidden="true">⚙ &#8212; &#10005;</span>
+        </div>
+        <div class="win-fake-model">
+          <img class="win-fake-mark" src="logo.png" alt="">
+          large-v3-turbo model &middot; ready
+        </div>
+        <div class="win-fake-log" data-demo-log>
+          <p class="win-fake-dim">Ready to use.</p>
+        </div>
+        <div class="win-fake-foot">
+          <span class="win-fake-key">INSERT</span>
+          <span class="win-fake-bars" data-demo-bars></span>
+          <span class="win-fake-status-wrap">
+            <span class="win-fake-rec-dot" data-demo-dot></span>
+            <span class="win-fake-status" data-demo-status>READY</span>
+          </span>
+        </div>
+      </div>
+      <p class="demo-caption" data-demo-caption hidden>
+        No actors, no script -- just Bryan, talking to his laptop, once.
+      </p>
+    </div>
+
     <!-- Two installers, and only one of them is right for any given machine.
          Presented as equals they would cost every visitor a decision they are
          not equipped to make -- most people do not know what card is in their
@@ -133,19 +185,6 @@
       <a href="install.html">Step by step install guide</a>
       · <a href="https://github.com/bryramirezp/kara/releases/latest">All files and release notes</a>
     </p>
-
-    <!-- The app itself, photographed. This used to be a CSS mockup that typed
-         out invented sentences on a loop: pretty, and a drawing of a product
-         rather than the product. Whatever someone decides from this page, they
-         should decide it having seen the real window. -->
-    <div class="demo">
-      <img class="app-shot on-dark"  src="screenshot-main-dark.png"
-           alt="The Kara window, listing sentences that have been dictated"
-           width="320" height="480">
-      <img class="app-shot on-light" src="screenshot-main-light.png"
-           alt="The Kara window, listing sentences that have been dictated"
-           width="320" height="480">
-    </div>
 
     <div class="proof">
       <div><b>0</b><span>bytes leave your PC</span></div>
@@ -287,6 +326,7 @@
 </script>
 <script src="theme.js"></script>
 <script src="pick.js"></script>
+<script src="demo.js"></script>
 
 </body>
 </html>

@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ES2019",
+    "lib": ["dom", "es2019"],
+    "module": "none",
+    "strict": true,
+    "rootDir": "docs/src",
+    "outDir": "docs",
+    "newLine": "lf"
+  },
+  "include": ["docs/src/**/*.ts"],
+  "exclude": []
+}

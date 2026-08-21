@@ -13,3 +13,6 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
+
+# Node (docs/demo.ts build only -- docs/demo.js is committed, this isn't)
+node_modules/

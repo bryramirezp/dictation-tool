@@ -1,0 +1,12 @@
+{
+  "name": "kara-site-tools",
+  "private": true,
+  "description": "Local-only TypeScript build for docs/demo.js. Never runs in CI -- Pages serves docs/ as committed plain JS.",
+  "scripts": {
+    "build:demo": "tsc -p tsconfig.json",
+    "watch:demo": "tsc -w -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}
