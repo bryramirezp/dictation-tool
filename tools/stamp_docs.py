@@ -59,6 +59,13 @@ def last_commit_date(rel_path):
 
     Using the commit date rather than today's keeps <lastmod> honest: a sitemap
     that claims every page changed today teaches crawlers to ignore the field.
+
+    It also means this has to be the last thing you do, not the first. Stamping
+    a docs change and then committing it leaves the sitemap quoting the date of
+    the commit before, and --check in the release workflow refuses the release
+    for it -- which is exactly how 0.3.0's first run failed. Commit the docs,
+    then stamp, then commit the sitemap on its own: that second commit does not
+    touch the pages, so their dates stay put and the answer stops moving.
     """
     try:
         out = subprocess.run(

@@ -60,6 +60,17 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
 Name: "startup";     Description: "Start Kara when Windows starts"
 
+[InstallDelete]
+#ifndef GpuBuild
+; The two installers share an AppId on purpose, so that either upgrades the
+; other in place rather than leaving two copies of Kara on the machine. The
+; price is this: Inno only removes what it installed itself, so putting the
+; processor build over the GPU one would leave 925 MB of CUDA libraries sitting
+; in the install folder, outliving even the uninstaller. PyInstaller's onedir
+; layout puts them under _internal.
+Type: filesandordirs; Name: "{app}\_internal\nvidia"
+#endif
+
 [Files]
 Source: "..\dist\Kara\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
