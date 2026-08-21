@@ -108,11 +108,28 @@
       Hold a key, say it out loud, let go. Your words land in whatever app you
       are using. No internet, no account, no subscription.
     </p>
-    <a class="btn" id="heroBtn" href="https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-0.3.0.exe">Download for Windows</a>
+    <!-- Two installers, and only one of them is right for any given machine.
+         Presented as equals they would cost every visitor a decision they are
+         not equipped to make -- most people do not know what card is in their
+         computer, which is the whole reason 0.3.0 exists. So the processor
+         build is the filled button here, because it is never the wrong answer,
+         and docs/pick.js promotes the GPU one only where it can see an NVIDIA
+         card. Without JavaScript this markup is already correct. -->
+    <div class="pick" data-pick>
+      <p class="pick-read" hidden></p>
+      <div class="pick-row">
+        <a class="btn pick-btn pick-cpu" id="heroBtn" href="https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-0.3.0.exe">
+          <span class="pick-label">Download for Windows</span>
+          <small><!--dl-size-->72 MB<!--/dl-size--> · works on any PC</small>
+        </a>
+        <a class="btn btn-ghost pick-btn pick-gpu" href="https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-GPU-0.3.0.exe">
+          <span class="pick-label">Got an NVIDIA card?</span>
+          <small><!--dl-size-gpu-->572 MB<!--/dl-size-gpu--> · uses it, and is much faster</small>
+        </a>
+      </div>
+    </div>
     <p class="sub">
-      <!--dl-size-->72 MB<!--/dl-size--> · Windows 10 and 11 · nothing else to install<br>
-      Got an NVIDIA card? <a href="https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-GPU-0.3.0.exe">Get the GPU build</a>
-      (<!--dl-size-gpu-->572 MB<!--/dl-size-gpu-->) instead — same app, much faster.<br>
+      Windows 10 and 11 · nothing else to install<br>
       <a href="install.html">Step by step install guide</a>
       · <a href="https://github.com/bryramirezp/kara/releases/latest">All files and release notes</a>
     </p>
@@ -210,20 +227,29 @@
   <div class="wrap narrow">
     <p class="eyebrow">Getting it</p>
     <h2>Download and run. That is the whole setup.</h2>
-    <p style="margin-top:1.6em">
-      <a class="btn" href="https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-0.3.0.exe">Download the installer</a>
-    </p>
+    <div class="pick" data-pick style="margin-top:1.6em">
+      <p class="pick-read" hidden></p>
+      <div class="pick-row pick-row-left">
+        <a class="btn pick-btn pick-cpu" href="https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-0.3.0.exe">
+          <span class="pick-label">Download the installer</span>
+          <small><!--dl-size-->72 MB<!--/dl-size--> · works on any PC</small>
+        </a>
+        <a class="btn btn-ghost pick-btn pick-gpu" href="https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-GPU-0.3.0.exe">
+          <span class="pick-label">Got an NVIDIA card?</span>
+          <small><!--dl-size-gpu-->572 MB<!--/dl-size-gpu--> · uses it, and is much faster</small>
+        </a>
+      </div>
+    </div>
     <p>
       It installs for you only, so Windows never asks for an administrator
       password, and it offers to start with Windows if you want that.
     </p>
     <p>
-      If you have an <strong>NVIDIA graphics card</strong>, take
-      <a href="https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-GPU-0.3.0.exe">the GPU installer</a> instead. It is the
-      same program with the CUDA libraries packed in, which is the whole reason
-      it weighs so much more, and on a card it is not a small difference. You do
-      not need the CUDA Toolkit or anything else — just a current driver. Either
-      installer can be run over the other; they share their settings.
+      The GPU installer is the same program with the CUDA libraries packed in,
+      which is the whole reason it weighs so much more. You do not need the CUDA
+      Toolkit or anything else — just a current driver. Either installer can be
+      run over the other; they share their settings, so taking the wrong one
+      costs you a download and nothing else.
     </p>
     <p>
       AMD and Intel cards are not supported yet. Kara falls back to your
@@ -315,6 +341,7 @@ launch.bat</pre>
 })();
 </script>
 <script src="theme.js"></script>
+<script src="pick.js"></script>
 
 </body>
 </html>

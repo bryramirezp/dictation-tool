@@ -140,6 +140,52 @@ section { padding: 92px 0; border-top: 1px solid var(--line); }
 .sub { color: var(--muted); font-size: .87rem; margin: 1.1em 0 0; }
 .sub a { color: var(--muted); }
 
+/* ── The two downloads ──────────────────────────────────────────────────────
+   Never the same weight. Two buttons that look equally important stop the
+   reader to make them choose, and this particular choice depends on a fact
+   most people do not have to hand -- which graphics card is in the machine.
+   One filled button and one ghost says which to take without hiding the other.
+
+   docs/pick.js swaps the two around where it can see an NVIDIA card, so the
+   recommendation is not the same for everyone. Order is set in CSS rather than
+   in markup so that the HTML can stay in the order that is right when no
+   JavaScript runs at all.
+   ──────────────────────────────────────────────────────────────────────── */
+.pick { margin-top: 30px; }
+.pick-row { display: flex; flex-direction: column; gap: 12px; }
+@media (min-width: 620px) {
+  .pick-row { flex-direction: row; justify-content: center; align-items: stretch; }
+  .pick-row-left { justify-content: flex-start; }
+}
+.pick-row.gpu-first .pick-cpu { order: 2; }
+
+.pick-btn { padding: 12px 30px; text-align: center; }
+.pick-btn small {
+  display: block; margin-top: 4px;
+  font: 400 .74rem/1.3 var(--sans); opacity: .74;
+}
+.pick-label { font: inherit; }
+
+/* The line that names the reader's own card. It is the only sentence on the
+   page about them rather than about the app, which is exactly why it gets to
+   sit above the buttons instead of under them. */
+.pick-read { margin: 0 0 14px; font-size: .9rem; color: var(--body); }
+.pick-read b { color: var(--accent-text); font-weight: 600; }
+/* --muted, not --quiet, which is what this asked for first. At .78rem it is the
+   smallest text on the page, and --quiet lands at 3.34:1 on the dark background
+   and 3.45:1 on the light one -- both short of the 4.5:1 that small text needs.
+   --muted is 6.73:1 and 5.10:1. Measured with contrast_ratio() in kara.py, the
+   same function the app uses on its own palette. */
+.pick-private {
+  display: block; margin-top: 4px;
+  color: var(--muted); font-size: .78rem;
+}
+
+/* What the GPU build becomes on a machine that cannot use it: still reachable,
+   no longer an invitation to spend 572 MB finding that out. */
+.pick-aside { font-size: .84rem; color: var(--muted); align-self: center; }
+.pick-aside:hover { color: var(--title); }
+
 /* ── The hero shot ────────────────────────────────────────────────────────
    The app, photographed, where a CSS mockup of the app used to animate. The
    mockup carried a stage, a caret, a level meter and a keycap, all of which
@@ -148,7 +194,7 @@ section { padding: 92px 0; border-top: 1px solid var(--line); }
    A drop shadow and nothing else. The PNG already has its corners cut to
    transparency (see tools/screenshots.py), so a border or a radius here would
    fight the shape rather than follow it.
-   ────────────────────────────────────────────────────────────────────────── */
+   ──────────────────────────────────────────────────────────────────────── */
 .demo { margin: 58px auto 0; max-width: 320px; }
 .app-shot, .shots img {
   display: block; width: 100%; height: auto;
