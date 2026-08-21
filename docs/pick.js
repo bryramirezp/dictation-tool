@@ -123,4 +123,18 @@
   }
 
   Array.prototype.forEach.call(blocks, apply);
+
+  /* The sticky bar is the only download offer below the fold now that the
+     "Getting it" section is gone, so it cannot keep saying "Download" and mean
+     the processor build while the top of the page recommends the other one.
+     The address comes off the button that is already on the page rather than
+     being written down again here, so it stays right when the version moves. */
+  if (verdict === 'nvidia') {
+    var bar = document.querySelector('[data-pick-topbar]');
+    var gpuHref = document.querySelector('.pick-gpu');
+    if (bar && gpuHref) {
+      bar.href = gpuHref.getAttribute('href');
+      bar.textContent = 'Download GPU build';
+    }
+  }
 })();

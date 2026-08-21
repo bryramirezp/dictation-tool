@@ -95,7 +95,7 @@
     <nav><a href="install.html">Install guide</a></nav>
     <span class="grow"></span>
     <button class="theme-toggle" data-theme-toggle type="button"></button>
-    <a class="btn" href="https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-0.3.0.exe">Download</a>
+    <a class="btn" data-pick-topbar href="https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-0.3.0.exe">Download</a>
   </div>
 </div>
 
@@ -220,61 +220,6 @@
       not do that. It dictates text, and it does that part for free and without
       a connection.
     </p>
-  </div>
-</section>
-
-<section>
-  <div class="wrap narrow">
-    <p class="eyebrow">Getting it</p>
-    <h2>Download and run. That is the whole setup.</h2>
-    <div class="pick" data-pick style="margin-top:1.6em">
-      <p class="pick-read" hidden></p>
-      <div class="pick-row pick-row-left">
-        <a class="btn pick-btn pick-cpu" href="https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-0.3.0.exe">
-          <span class="pick-label">Download the installer</span>
-          <small><!--dl-size-->72 MB<!--/dl-size--> · works on any PC</small>
-        </a>
-        <a class="btn btn-ghost pick-btn pick-gpu" href="https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-GPU-0.3.0.exe">
-          <span class="pick-label">Got an NVIDIA card?</span>
-          <small><!--dl-size-gpu-->572 MB<!--/dl-size-gpu--> · uses it, and is much faster</small>
-        </a>
-      </div>
-    </div>
-    <p>
-      It installs for you only, so Windows never asks for an administrator
-      password, and it offers to start with Windows if you want that.
-    </p>
-    <p>
-      The GPU installer is the same program with the CUDA libraries packed in,
-      which is the whole reason it weighs so much more. You do not need the CUDA
-      Toolkit or anything else — just a current driver. Either installer can be
-      run over the other; they share their settings, so taking the wrong one
-      costs you a download and nothing else.
-    </p>
-    <p>
-      AMD and Intel cards are not supported yet. Kara falls back to your
-      processor on those, which works, and is being worked on.
-    </p>
-    <p>
-      The installer is not signed, so Windows may show a blue box saying "Windows
-      protected your PC". Click <strong>More info</strong>, then <strong>Run
-      anyway</strong>. Signing a program costs money every year, which is a lot
-      for a free tool.
-    </p>
-    <p>
-      The first time you open it, it downloads the speech model — about 460 MB,
-      once. After that it never needs the internet again.
-    </p>
-
-    <h3>Using a graphics card</h3>
-    <p>
-      The download runs on your processor. If you have an NVIDIA card and want it
-      much faster, run it from the source code instead:
-    </p>
-<pre>git clone https://github.com/bryramirezp/kara.git
-cd kara
-py -3 -m pip install -r requirements.txt nvidia-cublas-cu12
-launch.bat</pre>
   </div>
 </section>
 
