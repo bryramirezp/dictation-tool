@@ -1,0 +1,11 @@
+# Everything in requirements.txt, plus the CUDA libraries, for the GPU build:
+#
+#     pip install -r requirements-gpu.txt
+#     set KARA_GPU=1 && py -3 packaging/build.py --gpu
+#
+# cuDNN is not listed and is not needed: ctranslate2 ships its own copy. The
+# CUDA Toolkit you may have installed system-wide is not used either -- these
+# wheels are what ends up inside the installer, so the machine that runs Kara
+# needs nothing but a driver.
+-r requirements.txt
+nvidia-cublas-cu12

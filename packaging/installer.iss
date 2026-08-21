@@ -15,7 +15,16 @@
 ; the version is written down in exactly one place. The fallback only matters
 ; when someone runs ISCC by hand.
 #ifndef AppVersion
-  #define AppVersion "0.2.4"
+  #define AppVersion "0.3.0"
+#endif
+
+; Set by packaging/build.py --gpu. Only the file name changes: the AppId is
+; deliberately the same for both, so installing one over the other upgrades in
+; place rather than leaving two copies of Kara on the machine.
+#ifdef GpuBuild
+  #define Flavour "-GPU"
+#else
+  #define Flavour ""
 #endif
 
 [Setup]
@@ -35,7 +44,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
 OutputDir=..\dist
-OutputBaseFilename=Kara-Setup-{#AppVersion}
+OutputBaseFilename=Kara-Setup{#Flavour}-{#AppVersion}
 SetupIconFile=..\assets\icon.ico
 UninstallDisplayIcon={app}\{#AppExeName}
 WizardStyle=modern

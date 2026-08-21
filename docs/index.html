@@ -40,9 +40,9 @@
   "applicationCategory": "UtilitiesApplication",
   "applicationSubCategory": "Speech Recognition",
   "operatingSystem": "Windows 10, Windows 11",
-  "softwareVersion": "0.2.4",
+  "softwareVersion": "0.3.0",
   "url": "https://bryramirezp.github.io/kara/",
-  "downloadUrl": "https://github.com/bryramirezp/kara/releases/download/v0.2.4/Kara-Setup-0.2.4.exe",
+  "downloadUrl": "https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-0.3.0.exe",
   "codeRepository": "https://github.com/bryramirezp/kara",
   "license": "https://opensource.org/licenses/MIT",
   "isAccessibleForFree": true,
@@ -95,7 +95,7 @@
     <nav><a href="install.html">Install guide</a></nav>
     <span class="grow"></span>
     <button class="theme-toggle" data-theme-toggle type="button"></button>
-    <a class="btn" href="https://github.com/bryramirezp/kara/releases/download/v0.2.4/Kara-Setup-0.2.4.exe">Download</a>
+    <a class="btn" href="https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-0.3.0.exe">Download</a>
   </div>
 </div>
 
@@ -108,9 +108,11 @@
       Hold a key, say it out loud, let go. Your words land in whatever app you
       are using. No internet, no account, no subscription.
     </p>
-    <a class="btn" id="heroBtn" href="https://github.com/bryramirezp/kara/releases/download/v0.2.4/Kara-Setup-0.2.4.exe">Download for Windows</a>
+    <a class="btn" id="heroBtn" href="https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-0.3.0.exe">Download for Windows</a>
     <p class="sub">
       <!--dl-size-->72 MB<!--/dl-size--> · Windows 10 and 11 · nothing else to install<br>
+      Got an NVIDIA card? <a href="https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-GPU-0.3.0.exe">Get the GPU build</a>
+      (<!--dl-size-gpu-->1200 MB<!--/dl-size-gpu-->) instead — same app, much faster.<br>
       <a href="install.html">Step by step install guide</a>
       · <a href="https://github.com/bryramirezp/kara/releases/latest">All files and release notes</a>
     </p>
@@ -209,11 +211,23 @@
     <p class="eyebrow">Getting it</p>
     <h2>Download and run. That is the whole setup.</h2>
     <p style="margin-top:1.6em">
-      <a class="btn" href="https://github.com/bryramirezp/kara/releases/download/v0.2.4/Kara-Setup-0.2.4.exe">Download the installer</a>
+      <a class="btn" href="https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-0.3.0.exe">Download the installer</a>
     </p>
     <p>
       It installs for you only, so Windows never asks for an administrator
       password, and it offers to start with Windows if you want that.
+    </p>
+    <p>
+      If you have an <strong>NVIDIA graphics card</strong>, take
+      <a href="https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-GPU-0.3.0.exe">the GPU installer</a> instead. It is the
+      same program with the CUDA libraries packed in, which is the whole reason
+      it weighs so much more, and on a card it is not a small difference. You do
+      not need the CUDA Toolkit or anything else — just a current driver. Either
+      installer can be run over the other; they share their settings.
+    </p>
+    <p>
+      AMD and Intel cards are not supported yet. Kara falls back to your
+      processor on those, which works, and is being worked on.
     </p>
     <p>
       The installer is not signed, so Windows may show a blue box saying "Windows

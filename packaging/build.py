@@ -1,15 +1,22 @@
 """Build everything a release ships.
 
-    py -3 packaging/build.py
+    py -3 packaging/build.py           the ordinary installer
+    py -3 packaging/build.py --gpu     the NVIDIA one, about 1.2 GB
 
 Leaves in dist/:
-    Kara-Setup-<version>.exe     the installer
-    Kara-<version>-portable.zip  the same app, unzip and run
-    SHA256SUMS.txt                        hashes of both
+    Kara-Setup-<version>.exe          the installer
+    Kara-<version>-portable.zip       the same app, unzip and run
+    SHA256SUMS.txt                    hashes of both
+
+and with --gpu, the same three with -GPU in the name.
 
 The version is read from __version__ in kara.py, which is the only
 place it is written down.
+
+The two builds cannot share a dist/Kara directory, so run them one at a time;
+each starts by clearing what the other left.
 """
+import argparse
 import hashlib
 import os
 import re
@@ -39,45 +46,60 @@ def version():
     return m.group(1)
 
 
-def run(cmd):
+def run(cmd, env=None):
     print("  $", " ".join(str(c) for c in cmd))
-    subprocess.run(cmd, cwd=ROOT, check=True)
+    subprocess.run(cmd, cwd=ROOT, check=True, env=env)
 
 
-def build_exe():
+def build_exe(gpu):
     print("== PyInstaller ==")
+    env = dict(os.environ)
+    if gpu:
+        env["KARA_GPU"] = "1"
+    else:
+        # Explicitly cleared rather than merely absent: a shell where it was set
+        # for an earlier build would otherwise produce a 1.2 GB file named as
+        # the small one, and nothing downstream would notice.
+        env.pop("KARA_GPU", None)
+    # The previous flavour's files are still in there and PyInstaller does not
+    # remove what it no longer produces.
+    shutil.rmtree(APP, ignore_errors=True)
     run([sys.executable, "-m", "PyInstaller", "--noconfirm",
-         os.path.join("packaging", "kara.spec")])
+         os.path.join("packaging", "kara.spec")], env=env)
     exe = os.path.join(APP, "Kara.exe")
     if not os.path.exists(exe):
         sys.exit(f"expected {exe}")
 
 
-def build_installer(ver):
+def build_installer(ver, gpu):
     print("== Inno Setup ==")
     iscc = next((p for p in ISCC_CANDIDATES if p and os.path.exists(p)),
                 shutil.which("ISCC"))
     if not iscc:
         sys.exit("Inno Setup 6 not found. winget install JRSoftware.InnoSetup")
-    run([iscc, f"/DAppVersion={ver}", os.path.join("packaging", "installer.iss")])
+    cmd = [iscc, f"/DAppVersion={ver}"]
+    if gpu:
+        cmd.append("/DGpuBuild=1")
+    run(cmd + [os.path.join("packaging", "installer.iss")])
 
 
-def stable_alias(setup):
+def stable_alias(setup, gpu):
     """A copy of the installer under a name that never changes.
 
     GitHub only serves /releases/latest/download/<name> for an exact file name,
     so a versioned one stops working the moment a new release goes out. This
-    copy is what the download button on the website points at, so the button
-    keeps working without editing the page on every release.
+    copy is what the download buttons on the website point at, so they keep
+    working without editing the page on every release.
     """
-    alias = os.path.join(DIST, "Kara-Setup.exe")
+    alias = os.path.join(DIST, "Kara-Setup-GPU.exe" if gpu else "Kara-Setup.exe")
     shutil.copy2(setup, alias)
     return alias
 
 
-def build_zip(ver):
+def build_zip(ver, gpu):
     print("== portable zip ==")
-    out = os.path.join(DIST, f"Kara-{ver}-portable.zip")
+    tag = "-GPU" if gpu else ""
+    out = os.path.join(DIST, f"Kara-{ver}{tag}-portable.zip")
     if os.path.exists(out):
         os.remove(out)
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
@@ -91,7 +113,7 @@ def build_zip(ver):
     return out
 
 
-def write_hashes(ver, paths):
+def write_hashes(ver, paths, gpu):
     print("== SHA256 ==")
     lines = []
     for p in paths:
@@ -101,7 +123,7 @@ def write_hashes(ver, paths):
                 h.update(chunk)
         lines.append(f"{h.hexdigest()}  {os.path.basename(p)}")
         print("  " + lines[-1])
-    out = os.path.join(DIST, "SHA256SUMS.txt")
+    out = os.path.join(DIST, "SHA256SUMS-GPU.txt" if gpu else "SHA256SUMS.txt")
     with open(out, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
     return out
@@ -117,19 +139,29 @@ def stamp_docs():
 
 
 def main():
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("--gpu", action="store_true",
+                    help="carry the CUDA libraries (about 1.2 GB)")
+    args = ap.parse_args()
+    gpu = args.gpu
+
     ver = version()
-    print(f"Kara {ver}\n")
-    build_exe()
-    build_installer(ver)
-    zip_path = build_zip(ver)
-    setup = os.path.join(DIST, f"Kara-Setup-{ver}.exe")
+    tag = "-GPU" if gpu else ""
+    print(f"Kara {ver}{tag}\n")
+    build_exe(gpu)
+    build_installer(ver, gpu)
+    zip_path = build_zip(ver, gpu)
+    setup = os.path.join(DIST, f"Kara-Setup{tag}-{ver}.exe")
     if not os.path.exists(setup):
         sys.exit(f"expected {setup}")
-    alias = stable_alias(setup)
+    alias = stable_alias(setup, gpu)
     # The alias is byte for byte the versioned file, so one hash covers both.
-    write_hashes(ver, [setup, zip_path])
-    print(f"  (Kara-Setup.exe is a copy of {os.path.basename(setup)})")
-    stamp_docs()
+    write_hashes(ver, [setup, zip_path], gpu)
+    print(f"  ({os.path.basename(alias)} is a copy of {os.path.basename(setup)})")
+    # Only the ordinary build's size is quoted anywhere, and stamping from the
+    # GPU one would put 1.2 GB on the page everybody lands on.
+    if not gpu:
+        stamp_docs()
 
     print("\n== ready ==")
     for name in sorted(os.listdir(DIST)):

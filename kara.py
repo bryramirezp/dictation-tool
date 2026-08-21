@@ -5,7 +5,7 @@ Hold the configured hotkey to record. Release to transcribe and paste.
 Default hotkey: Insert
 """
 
-__version__ = "0.2.4"
+__version__ = "0.3.0"
 
 import sys
 import os
@@ -20,12 +20,16 @@ import queue
 import ctypes
 import datetime
 import platform
+import zipfile
 from collections import deque
 
-# True in the downloadable build. It leaves the CUDA libraries out on purpose --
-# they weigh 925 MB against 190 MB for the whole rest of the program -- so a
-# graphics card is simply not on offer there, and pretending otherwise strands
-# anyone who picks it.
+# True in any downloadable build. It no longer says anything about graphics
+# cards: there are two builds now. The ordinary one leaves the CUDA libraries out,
+# because they weigh 925 MB against 190 MB for the whole rest of the program. The
+# GPU one carries them and is that much bigger.
+#
+# Which of the two is running is not something to infer from a flag. Ask
+# cuda_libs_present(), which answers by loading the library.
 IS_PACKAGED = getattr(sys, "frozen", False)
 SOURCE_URL  = "https://github.com/bryramirezp/kara"
 
@@ -56,14 +60,30 @@ def _add_nvidia_dlls():
     """
     import site
     roots = []
+
+    # A frozen build has no site-packages. PyInstaller lays the wheels down
+    # beside the executable keeping their nvidia/<lib>/bin shape, so the same
+    # loop below finds them once it is pointed at the right place. _MEIPASS and
+    # the executable's own folder are the same directory in a onedir build and
+    # different ones under onefile, so both are offered.
+    if IS_PACKAGED:
+        roots.append(os.path.dirname(sys.executable))
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            roots.append(meipass)
+
     for getter in ("getsitepackages", "getusersitepackages"):
         if hasattr(site, getter):
             got = getattr(site, getter)()
             roots.extend(got if isinstance(got, list) else [got])
 
+    import glob
     for root in roots:
-        for name in ("cublas", "cudnn", "cuda_runtime"):
-            d = os.path.join(root, "nvidia", name, "bin")
+        # Whatever nvidia/<lib>/bin directories are actually there, rather than
+        # a list of three names written down years ago. The packaged build ships
+        # cuda_nvrtc as well, which that list did not mention and which would
+        # therefore have been the one library nothing could find.
+        for d in glob.glob(os.path.join(root, "nvidia", "*", "bin")):
             if not os.path.isdir(d):
                 continue
             if d not in os.environ.get("PATH", ""):
@@ -101,6 +121,12 @@ def cuda_libs_present():
 
 _add_nvidia_dlls()
 
+# Asked once, at import, because the answer cannot change while the program runs
+# and because three separate places used to guess at it from IS_PACKAGED. That
+# guess is what hid the option from a beta tester with an RTX 3060 and left both
+# him and the developer believing the card was in use.
+GPU_AVAILABLE = cuda_libs_present()
+
 # ── Model cache layout ────────────────────────────────────────────────────────
 # Some huggingface_hub versions fill snapshots/ with symlinks pointing into
 # blobs/. Plain files instead: nothing else on the machine shares this cache, so
@@ -126,6 +152,11 @@ from PIL import Image, ImageDraw
 from pynput.mouse import Button, Listener as MouseListener
 from pynput.keyboard import Key, KeyCode, Listener as KeyboardListener
 
+# Its own module because it is pure string handling with no dependency on
+# anything else here, which is what lets tests/test_text.py cover it without
+# starting a window or opening a microphone.
+import karatext
+
 pyautogui.FAILSAFE = False  # corner-of-screen abort would break paste mid-flow
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
@@ -145,35 +176,50 @@ if not os.path.exists(SETTINGS_FILE):
         except OSError:
             pass
 
-# ── Development instrumentation ───────────────────────────────────────────────
-# Off unless KARA_DEBUG_LOG is set, so a normal build never writes this file and
-# never can: there is no setting that turns it on and no network code anywhere
-# in it. It exists to answer questions the developer cannot answer from his own
-# machine -- "why does pressing the key take two seconds on that laptop and
+# ── Instrumentation ───────────────────────────────────────────────────────────
+# Always on. It exists to answer questions the developer cannot answer from his
+# own machine -- "why does pressing the key take two seconds on that laptop and
 # eight milliseconds on this one" -- by timing each step separately on the
 # machine that is actually slow.
 #
-# What it records is timings, sizes and device names. What it never records is
-# what anybody said: the transcript is not passed in, and the only thing derived
-# from it is how many characters long it was. Keep it that way. A file that
-# cannot leak speech is worth more than one with a redaction pass.
+# It used to be off unless KARA_DEBUG_LOG was set, which meant the two people who
+# reported the app was slow had recorded nothing at all: neither of them was ever
+# going to run setx before using a dictation tool. A measurement nobody takes is
+# not a cautious measurement, it is an absent one.
 #
-#     setx KARA_DEBUG_LOG 1
+# What makes always-on acceptable is what the file holds. Timings, sizes and
+# device names. Never what anybody said: the transcript is not passed in, and the
+# only thing derived from it is how many characters long it was. Keep it that
+# way. A file that cannot leak speech is worth more than one with a redaction
+# pass.
+#
+# It also stays on this computer. Kara has no network code and nothing here sends
+# anything. The file moves only when someone presses Export diagnostics in
+# Settings and decides to pass the zip along themselves.
+#
+# KARA_DEBUG_LOG used to switch all of this on and is ignored from now on;
+# there is nothing left for it to gate. KARA_MACHINE still names the machine
+# inside the file, which is what makes two laptops' traces tellable apart once
+# they are collected in one place.
+#
 #     setx KARA_MACHINE   notebook-a
 #
-# Writes one JSON object per line to  %LOCALAPPDATA%\Kara\trace.jsonl
-TRACE_FILE = os.path.join(APP_DIR, "trace.jsonl")
+# One JSON object per line in  %LOCALAPPDATA%\Kara\trace.jsonl, kept to the most
+# recent TRACE_MAX_BYTES so it cannot grow without end.
+TRACE_FILE      = os.path.join(APP_DIR, "trace.jsonl")
+TRACE_MAX_BYTES = 2 * 1024 * 1024      # ~10k cycles, months of ordinary use
 
 
 class _Trace:
     """One JSONL line per press-to-typed cycle, or nothing at all."""
 
     def __init__(self):
-        self.enabled = bool(os.environ.get("KARA_DEBUG_LOG"))
+        self.enabled = True
         self.machine = os.environ.get("KARA_MACHINE") or platform.node()
         self._seq = 0
         self._lock = threading.Lock()
         self._cur = None
+        self._writes = 0
 
     def start(self):
         """Begin a cycle. Called on key down, discarding any half-finished one."""
@@ -211,11 +257,37 @@ class _Trace:
         cur["machine"] = self.machine
         cur["version"] = __version__
         try:
-            with self._lock, io.open(TRACE_FILE, "a", encoding="utf-8") as f:
-                f.write(json.dumps(cur, ensure_ascii=False, sort_keys=True) + "\n")
+            with self._lock:
+                with io.open(TRACE_FILE, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(cur, ensure_ascii=False, sort_keys=True) + "\n")
+                self._writes += 1
+                # Every fiftieth line rather than every one: a stat call per
+                # dictation is nothing, but this is a file the user never asked
+                # for and there is no reason to touch it more than needed.
+                if self._writes % 50 == 0:
+                    self._trim()
         except OSError:
             # Instrumentation that can break dictation is worse than no
             # instrumentation, so a failure here is dropped on the floor.
+            pass
+
+    def _trim(self):
+        """Drop the oldest half once the file passes TRACE_MAX_BYTES.
+
+        Half at a time rather than down to the limit, so this happens rarely
+        instead of on every write once the ceiling is reached. Caller holds the
+        lock.
+        """
+        try:
+            if os.path.getsize(TRACE_FILE) <= TRACE_MAX_BYTES:
+                return
+            with io.open(TRACE_FILE, encoding="utf-8") as f:
+                lines = f.readlines()
+            tmp = TRACE_FILE + ".tmp"
+            with io.open(tmp, "w", encoding="utf-8") as f:
+                f.writelines(lines[len(lines) // 2:])
+            os.replace(tmp, TRACE_FILE)
+        except OSError:
             pass
 
 
@@ -243,7 +315,16 @@ DEFAULT_SETTINGS = {
     "mic":      "auto",
     "language": "es",
     "theme":    "dark",
+    # "digits" writes numbers as numbers; "words" leaves whatever Whisper said.
+    "numbers":  "digits",
+    # "off", "safe" or "all". See karatext: "safe" is the phrases nobody says by
+    # accident, "all" adds bare "coma" and "punto" and will occasionally eat a
+    # real word.
+    "commands": "safe",
 }
+
+NUMBER_MODES  = ["digits", "words"]
+COMMAND_MODES = ["off", "safe", "all"]
 
 # Languages you can dictate in. Stored as codes, shown as names.
 # There is no "auto" on purpose: see _migrate().
@@ -287,11 +368,19 @@ def _migrate(s):
     if s.get("language") not in LANGUAGE_CODES:
         s["language"] = DEFAULT_SETTINGS["language"]
 
-    # The downloadable build has no CUDA libraries, so "gpu" can only ever fail
-    # there. It happens to people who used the source version first and then
-    # installed this one over the same settings file.
-    if IS_PACKAGED and s.get("device") == "gpu":
+    # "gpu" can only ever fail where the CUDA libraries are missing, which is
+    # the ordinary download and any machine without a supported card. Settings
+    # files travel between the two -- people try the source version, then install
+    # a build over the top of it.
+    if not GPU_AVAILABLE and s.get("device") == "gpu":
         s["device"] = "auto"
+
+    # New in 0.3.0. A settings file written by an older build has neither, and a
+    # hand-edited one can have anything at all.
+    if s.get("numbers") not in NUMBER_MODES:
+        s["numbers"] = DEFAULT_SETTINGS["numbers"]
+    if s.get("commands") not in COMMAND_MODES:
+        s["commands"] = DEFAULT_SETTINGS["commands"]
     return s
 
 def save_settings(s):
@@ -536,11 +625,23 @@ def detect_hardware():
     _hardware = ("cpu", "int8", "small")
     try:
         import ctranslate2
-        if ctranslate2.get_cuda_device_count() > 0 and cuda_libs_present():
+        if ctranslate2.get_cuda_device_count() > 0 and GPU_AVAILABLE:
             vram = _get_vram_mb()
-            if vram >= 6000:
+            # large-v3-turbo weighs about 1.6 GB in float16. Asking for 6000 MB
+            # free was several times what it needs, and the effect was that a
+            # card with a browser open fell all the way to `small`: on the
+            # developer's own 3070 Ti, with 4517 MB free, the app was choosing
+            # the same model it gives a laptop with no card at all.
+            #
+            # There is deliberately no `medium` rung. It has 769M parameters
+            # against turbo's 809M, so it wants the same memory -- but turbo has
+            # four decoder layers where medium has twenty-four, and was distilled
+            # from large-v3. Anywhere medium fits, turbo fits and is both faster
+            # and more accurate, so a middle rung would only hand somebody the
+            # worse of two models they could equally afford.
+            if vram >= 2500:
                 _hardware = ("cuda", "float16", "large-v3-turbo")
-            elif vram >= 3000:
+            elif vram >= 1200:
                 _hardware = ("cuda", "float16", "small")
             else:
                 _hardware = ("cuda", "int8", "small")
@@ -565,6 +666,53 @@ def _get_vram_mb():
         return int(r.stdout.strip().splitlines()[0])
     except Exception:
         return 0
+
+def cpu_thread_count():
+    """How many threads ctranslate2 gets when it runs on the processor.
+
+    Its default is 4, whatever the machine happens to have. On a six-core laptop
+    that leaves a third of the work on the table and on a sixteen-thread desktop
+    it leaves three quarters, which is a strange thing to do to the one path
+    every machine without a supported graphics card is stuck on.
+
+    Physical cores, not logical ones: two threads sharing a core fight over the
+    same vector unit and the second one buys nothing. psutil is asked because
+    os.cpu_count() cannot tell the two apart, and halving it guesses wrong on the
+    hybrid Intel chips where the efficiency cores have no sibling to halve -- a
+    6P+8E laptop has 14 physical cores and 20 logical, and half of 20 is 10.
+
+    Capped at 8. Past that the matrix multiplications inside a `small` model stop
+    scaling and the machine only gets hotter, and this runs while the rest of the
+    desktop is still in use. The number is a starting guess; trace.jsonl carries
+    `threads` so it can be checked against real machines rather than argued about.
+    """
+    logical = os.cpu_count() or 4
+    try:
+        import psutil
+        physical = psutil.cpu_count(logical=False)
+    except Exception:
+        physical = None
+    # psutil answers None where it cannot tell, which is not the same as zero.
+    return max(4, min(8, physical or (logical // 2)))
+
+def list_gpus():
+    """Every display adapter Windows knows about, installed memory included.
+
+    nvidia-smi cannot answer this: it only sees NVIDIA cards, and the machines
+    this is meant to explain are exactly the ones where the card is an AMD or an
+    Intel and the app quietly fell back to the processor. Slow enough that it is
+    only ever called for the diagnostics report, never during dictation.
+    """
+    try:
+        r = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+             "Get-CimInstance Win32_VideoController | "
+             "ForEach-Object { $_.Name + ' | ' + [math]::Round($_.AdapterRAM/1MB) + ' MB' }"],
+            capture_output=True, text=True, timeout=20,
+            creationflags=subprocess.CREATE_NO_WINDOW)
+        return [ln.strip() for ln in r.stdout.splitlines() if ln.strip()]
+    except Exception:
+        return []
 
 def resolve_config(settings):
     """Turn settings dict into (device, compute_type, model_size)."""
@@ -685,6 +833,12 @@ def mark_image(state, px=MARK_PX):
 recording          = False
 audio_frames       = []
 model_obj          = None
+# Which device the loaded model actually sits on. _transcribe needs it to pick a
+# beam width, and it cannot ask the model: faster-whisper keeps no such
+# attribute, and the setting is a preference, not an answer -- "auto" resolves
+# differently on every machine and "gpu" can fall back.
+model_device       = "cpu"
+model_threads      = 0          # ctranslate2 cpu_threads in force, 0 on a card
 model_lock         = threading.Lock()
 # "loading" | "ready" | "error". Kept apart from model_obj on purpose: while a
 # new model loads after a settings change the old object is still there, so
@@ -697,6 +851,14 @@ status_lock        = threading.Lock()
 stream_lock        = threading.Lock()
 ui_queue           = queue.Queue()
 SAMPLE_RATE        = 16000
+# Below this, Whisper gets no style prompt. Priming it is meant to bring back the
+# punctuation it drops on a long run-on sentence, and a two-second utterance has
+# no punctuation to bring back -- while on short clips the prompt measurably
+# steers the decoder somewhere else. Measured: 1.5 seconds of English audio
+# decoded as Spanish came back as "Hold a key, speak" unprimed and "Suscríbete"
+# primed. That is a degenerate input, but it is the direction of the risk, and
+# there is nothing on the other side of the trade at that length.
+PROMPT_MIN_SECONDS = 3.0
 
 stream             = None      # open only while recording
 stream_samplerate  = SAMPLE_RATE
@@ -833,7 +995,7 @@ def _unreadable_model_msg(where):
 
 
 def load_model(device, compute, model_size, on_done=None, on_error=None):
-    global model_obj, model_state, model_error_msg
+    global model_obj, model_device, model_threads, model_state, model_error_msg
     with model_lock:
         model_state = "loading"
         model_error_msg = ""
@@ -845,8 +1007,9 @@ def load_model(device, compute, model_size, on_done=None, on_error=None):
             # them looking for something that is not there.
             if IS_PACKAGED:
                 raise RuntimeError(
-                    "This download only uses your processor. To use your "
-                    f"graphics card, install from the source code: {SOURCE_URL}")
+                    "This download only uses your processor. For an NVIDIA "
+                    "card, get the GPU installer from the releases page: "
+                    f"{SOURCE_URL}/releases")
             raise RuntimeError(
                 "Your graphics card is missing some files. Open a terminal and "
                 "run:  pip install nvidia-cublas-cu12  ...or set Device back "
@@ -854,8 +1017,15 @@ def load_model(device, compute, model_size, on_done=None, on_error=None):
         # Downloading outside the lock: it can take minutes on a first run, and
         # holding the lock there would freeze a transcription already in flight.
         model_path = ensure_model_files(model_size)
+        # cpu_threads only where it means something: on CUDA the number is
+        # ignored, and passing it anyway would suggest it is not.
+        threads = cpu_thread_count() if device == "cpu" else 0
+        extra = {"cpu_threads": threads} if threads else {}
         with model_lock:
-            model_obj = WhisperModel(model_path, device=device, compute_type=compute)
+            model_obj = WhisperModel(model_path, device=device,
+                                     compute_type=compute, **extra)
+            model_device = device
+            model_threads = threads
             model_state = "ready"
         if on_done:
             on_done(device, compute, model_size)
@@ -905,8 +1075,13 @@ def _mic_facts(device):
     over a second to switch into its recording profile. Without this the trace
     would show a slow open and no way to tell what was slow about it.
     """
-    if not trace.enabled:
-        return {}
+    # Asked fresh every time. It does sit on the path between the key going down
+    # and the window saying LISTENING, so it was cached at first -- until the
+    # pair of calls was timed at seven microseconds, against a budget measured in
+    # hundreds of milliseconds. The cache bought nothing and cost correctness:
+    # with the microphone left on auto its key was always "default", so plugging
+    # in a headset mid-session left every later line naming the old one, which is
+    # exactly the fact the diagnostics zip exists to carry.
     try:
         info = sd.query_devices(device, kind="input") if device is not None \
                else sd.query_devices(kind="input")
@@ -1033,16 +1208,52 @@ def _transcribe(audio_data, sr):
         if language not in LANGUAGE_CODES:
             language = DEFAULT_SETTINGS["language"]
 
+        # Beam 5 weighs five candidate transcriptions and costs about four
+        # times beam 1, for a difference that on one dictated sentence is
+        # usually a comma. A graphics card can spend that; a processor running
+        # `small` cannot, and the wait is the loudest complaint the app has. So
+        # the processor buys speed and the card keeps the accuracy.
+        beam = 1 if model_device == "cpu" else 5
+
+        # Whisper copies the formatting of what it is primed with, so a prompt
+        # full of commas and question marks is meant to bring those back on the
+        # run-on sentences that lose them. Worth saying plainly: on clean,
+        # well-articulated speech this made no difference at all in testing --
+        # byte-identical output over 66 seconds. The case it is aimed at is fast
+        # unpunctuated speech, which is exactly the case a synthesised voice
+        # cannot reproduce, so it ships unproven rather than proven. `chars_raw`
+        # in the trace is what will settle it on real machines.
+        prompt = karatext.style_prompt(language) if dur >= PROMPT_MIN_SECONDS else None
         with trace.span("model_lock_wait"):
             model_lock.acquire()
         try:
             with trace.span("transcribe"):
                 segments, info = model_obj.transcribe(
-                    audio_data, language=language, beam_size=5, vad_filter=False
+                    audio_data, language=language, beam_size=beam,
+                    initial_prompt=prompt,
+                    # Push-to-talk audio always starts and ends with silence --
+                    # the key goes down before you speak and up after you stop --
+                    # and without this that silence is charged at the same rate
+                    # as speech. 300ms rather than the 2s default: at two seconds
+                    # nothing in a dictated sentence is ever long enough to trim.
+                    vad_filter=True,
+                    vad_parameters={"min_silence_duration_ms": 300},
                 )
                 text = " ".join(seg.text.strip() for seg in segments).strip()
         finally:
             model_lock.release()
+
+        raw = text
+        text = karatext.polish(
+            text, language,
+            numbers=(app_settings.get("numbers", "digits") == "digits"),
+            voice_commands=app_settings.get("commands", "safe"))
+        trace.set(beam=beam, device=model_device, threads=model_threads,
+                  primed=bool(prompt),
+                  # Lengths, not text. A gap between the two means the text layer
+                  # rewrote something, which is the only way to tell from a trace
+                  # whether it is doing anything on somebody else's machine.
+                  chars_raw=len(raw))
 
         # The length of what was said, never what was said. See _Trace.
         trace.set(chars=len(text), peak=round(peak, 4), lang=language)
@@ -1051,11 +1262,18 @@ def _transcribe(audio_data, sr):
             ui_queue.put(("log", text, "said"))
             ui_queue.put(("status", _idle_status(), theme_color("status_idle")))
             with trace.span("paste"):
-                prev = pyperclip.paste()
+                # Only text can be handed back. pyperclip reads an image or a
+                # copied file as the empty string, and putting that back was
+                # not a restore -- it wiped whatever the user had copied. There
+                # is no way to return a picture through pyperclip, so when the
+                # clipboard held one the dictated text is left in place: still a
+                # loss, but a useful thing to be holding rather than nothing.
+                prev = pyperclip.paste() if _clipboard_has_text() else None
                 pyperclip.copy(text)
                 pyautogui.hotkey("ctrl", "v")
                 time.sleep(0.3)  # let the target app read the clipboard before restore
-                pyperclip.copy(prev)
+                if prev is not None:
+                    pyperclip.copy(prev)
             trace.finish()
         else:
             ui_queue.put(("log", "I didn't hear any words.", "dim"))
@@ -1067,6 +1285,21 @@ def _transcribe(audio_data, sr):
         # The class name, not str(e): a message can carry a file path, and a
         # path can carry the user's name.
         trace.finish(err=type(e).__name__)
+
+# ── Clipboard ─────────────────────────────────────────────────────────────────
+CF_UNICODETEXT = 13
+
+def _clipboard_has_text():
+    """True when the clipboard holds text, as opposed to an image or files.
+
+    IsClipboardFormatAvailable is one of the few clipboard calls that does not
+    need OpenClipboard first, so it cannot fail just because another program is
+    holding the clipboard at that instant.
+    """
+    try:
+        return bool(ctypes.windll.user32.IsClipboardFormatAvailable(CF_UNICODETEXT))
+    except Exception:
+        return False
 
 # ── Trigger guard ─────────────────────────────────────────────────────────────
 def _may_record():
@@ -1157,6 +1390,125 @@ def on_key_release(key):
         with status_lock:
             recording = False
         stop_and_transcribe()
+
+# ── Diagnostics export ────────────────────────────────────────────────────────
+# The whole point of this is that the user carries the file. Kara has no network
+# code; a report it could send by itself would be a different promise than the
+# one on the website. So it writes a zip, opens the folder, and stops.
+def _versions():
+    out = {"python": platform.python_version()}
+    for name in ("faster_whisper", "ctranslate2", "numpy", "sounddevice",
+                 "onnxruntime", "customtkinter", "huggingface_hub"):
+        try:
+            mod = __import__(name)
+            out[name] = getattr(mod, "__version__", "?")
+        except Exception as e:
+            out[name] = "not importable (%s)" % type(e).__name__
+    return out
+
+
+def diagnostics_report():
+    """The plain-text half of the export. Facts about the machine, never speech."""
+    L = []
+    add = L.append
+    add("Kara %s%s" % (__version__, "  (packaged build)" if IS_PACKAGED else "  (from source)"))
+    add("generated  %s" % datetime.datetime.now().astimezone().isoformat(timespec="seconds"))
+    add("machine    %s" % trace.machine)
+    add("")
+
+    add("-- what the app decided --")
+    try:
+        device, compute, model_size = resolve_config(app_settings)
+        add("resolved   device=%s compute=%s model=%s" % (device, compute, model_size))
+    except Exception as e:
+        add("resolved   failed: %r" % (e,))
+    # A transcription in flight holds this lock, and on a processor that can be
+    # the better part of a minute. Waiting behind one would leave the button
+    # saying "Working..." for a reason no user could guess at.
+    if model_lock.acquire(timeout=2.0):
+        try:
+            add("loaded     device=%s threads=%s state=%s"
+                % (model_device, model_threads or "n/a", model_state))
+            if model_error_msg:
+                add("error      %s" % model_error_msg)
+        finally:
+            model_lock.release()
+    else:
+        add("loaded     (busy transcribing; not read)")
+    add("cuda libs  %s" % ("yes" if cuda_libs_present() else "no"))
+    try:
+        import ctranslate2
+        add("cuda cards %d" % ctranslate2.get_cuda_device_count())
+    except Exception:
+        add("cuda cards unknown")
+    add("free vram  %s MB" % _get_vram_mb())
+    add("")
+
+    add("-- hardware --")
+    add("os         %s %s" % (platform.system(), platform.version()))
+    add("cpu        %s" % (platform.processor() or "?"))
+    try:
+        import psutil
+        add("cores      %s physical / %s logical"
+            % (psutil.cpu_count(logical=False), psutil.cpu_count()))
+        add("ram        %d GB" % (psutil.virtual_memory().total // (1024 ** 3)))
+    except Exception:
+        pass
+    # The MB here comes from Win32_VideoController.AdapterRAM, which is a 32-bit
+    # field and therefore says 4095 MB for every card with 4 GB or more -- an
+    # 8 GB 3070 Ti reports the same number as a 4 GB RX 6500 XT. The name is the
+    # part to trust; for how much memory is actually free, read `free vram`
+    # above, which comes from nvidia-smi and only exists on NVIDIA.
+    for line in list_gpus() or ["(could not ask Windows)"]:
+        add("gpu        %s  (size unreliable, see note in source)" % line)
+    add("")
+
+    add("-- audio --")
+    try:
+        for i, d in enumerate(sd.query_devices()):
+            if d["max_input_channels"] > 0:
+                api = sd.query_hostapis(d["hostapi"])["name"]
+                add("input %-2d   %s  [%s]" % (i, d["name"], api))
+    except Exception as e:
+        add("could not list devices: %r" % (e,))
+    add("")
+
+    add("-- versions --")
+    for k, v in _versions().items():
+        add("%-16s %s" % (k, v))
+    return "\n".join(L) + "\n"
+
+
+def export_diagnostics():
+    """Write the zip and show it in Explorer. Returns its path.
+
+    Everything in it is readable: a text report, the settings as saved, and the
+    trace. Anyone who wants to know what they are about to send can open it
+    first, which is the only reason it is a zip of plain files and not something
+    compact and opaque.
+    """
+    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M")
+    safe = "".join(c if c.isalnum() or c in "-_" else "-" for c in trace.machine)[:32]
+    out = os.path.join(APP_DIR, "Kara-diagnostics-%s-%s.zip" % (safe, stamp))
+
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("system.txt", diagnostics_report())
+        for path, name in ((SETTINGS_FILE, "settings.json"), (TRACE_FILE, "trace.jsonl")):
+            try:
+                z.write(path, name)
+            except OSError:
+                z.writestr(name + ".missing", "no file at %s" % path)
+
+    try:
+        # One argument, no space after the comma: "/select," and the path are a
+        # single token to Explorer, and split in two it ignores both and opens
+        # Documents. The path also has to be Windows-shaped -- a forward slash
+        # fails the same silent way.
+        subprocess.Popen(["explorer", "/select," + os.path.normpath(out)])
+    except Exception:
+        pass
+    return out
+
 
 # ── Shutdown ──────────────────────────────────────────────────────────────────
 def shutdown():
@@ -1633,10 +1985,12 @@ class KaraApp(ctk.CTk):
         # ── Device
         section("DEVICE")
         self._device_var = ctk.StringVar(value=self._settings.get("device", "auto"))
-        # No "gpu" in the downloadable build: it cannot honour it, so offering
-        # it would only be a button that breaks the app.
+        # Offered wherever the CUDA libraries actually load, whatever kind of
+        # build this is. Hiding it from every packaged build -- which was right
+        # while every packaged build was processor-only -- is what left a tester
+        # with an RTX 3060 unable to see the option at all.
         self._device_seg = segmented(
-            ["auto", "cpu"] if IS_PACKAGED else ["auto", "cpu", "gpu"],
+            ["auto", "cpu", "gpu"] if GPU_AVAILABLE else ["auto", "cpu"],
             self._device_var)
         self._device_hint = hint(self._device_hint_text())
         self._device_var.trace_add("write", lambda *_: self._device_hint.configure(
@@ -1652,12 +2006,42 @@ class KaraApp(ctk.CTk):
         self._model_hint = hint(
             MODEL_DESCRIPTIONS.get(self._settings.get("model", "auto"), ""))
 
+        # ── Text
+        section("TEXT")
+        self._numbers_var = ctk.StringVar(
+            value=self._settings.get("numbers", DEFAULT_SETTINGS["numbers"]))
+        self._numbers_seg = segmented(NUMBER_MODES, self._numbers_var)
+        hint("With digits, \"mil doscientos\" is typed as 1200 and \"las tres "
+             "cuarenta y cinco\" as las 3:45.")
+
+        self._commands_var = ctk.StringVar(
+            value=self._settings.get("commands", DEFAULT_SETTINGS["commands"]))
+        self._commands_seg = segmented(COMMAND_MODES, self._commands_var)
+        self._commands_hint = hint(self._commands_hint_text())
+        self._commands_var.trace_add("write", lambda *_: self._commands_hint.configure(
+            text=self._commands_hint_text()))
+
         # ── Hardware info
         self._hw_label = ctk.CTkLabel(body, text="", font=("Consolas", 9),
                                       text_color=t["text_faint"],
                                       wraplength=self.WRAP_W, justify="left")
         self._hw_label.pack(anchor="w", pady=(0, 10))
         threading.Thread(target=self._fill_hw_info, daemon=True).start()
+
+        # ── Diagnostics
+        section("DIAGNOSTICS")
+        self._diag_btn = ctk.CTkButton(
+            body, text="Export diagnostics…", height=36, corner_radius=9,
+            fg_color=t["bg_button"], hover_color=t["bg_button_hover"],
+            text_color=t["text_on_button"], font=("Segoe UI", 12),
+            command=self._export_diagnostics,
+        )
+        self._diag_btn.pack(fill="x", pady=(0, 4))
+        self._diag_hint = hint(
+            "Writes a zip with how long each dictation took, your settings, and "
+            "what this computer is: processor, graphics card, microphones. It "
+            "never contains anything you dictated. Nothing is sent — the file "
+            "just lands in a folder, and it is yours to send or delete.")
 
     # ── Theme ─────────────────────────────────────────────────────────────────
     def _on_theme_change(self, name):
@@ -1824,18 +2208,51 @@ class KaraApp(ctk.CTk):
                       f"+{self.winfo_y() + e.y - self._drag_y}")
 
     # ── Settings helpers ──────────────────────────────────────────────────────
+    def _commands_hint_text(self):
+        v = self._commands_var.get()
+        if v == "off":
+            return "Nothing you say is treated as punctuation."
+        if v == "all":
+            return ("Adds plain \"coma\" and \"punto\" on top of the phrases. "
+                    "Careful: those are ordinary words, so \"el punto de partida\" "
+                    "will come out with a full stop in the middle of it.")
+        return ("Say \"punto y aparte\", \"nueva línea\", \"abre paréntesis\" or "
+                "\"signo de interrogación\" and you get the punctuation instead of "
+                "the words. Only phrases nobody says by accident.")
+
     def _device_hint_text(self):
         v = self._device_var.get()
         if v == "auto":
+            if GPU_AVAILABLE:
+                return ("Uses your graphics card if you have one, and your "
+                        "processor if you do not. This is the safe choice.")
             if IS_PACKAGED:
                 return ("Uses your processor. This download does not come with "
-                        "graphics card support, to keep it small.")
-            return ("Uses your graphics card if you have one, and your processor "
-                    "if you do not. This is the safe choice.")
+                        "graphics card support, to keep it small — there is a "
+                        "separate GPU download for NVIDIA cards.")
+            return ("Uses your processor. No usable CUDA libraries were found, "
+                    "so a graphics card is not on offer.")
         if v == "cpu":
             return ("Always uses the processor. Slower, but it works on any computer.")
         return ("Always uses the graphics card. Much faster, but it only works "
                 "with an NVIDIA card.")
+
+    def _export_diagnostics(self):
+        """Off the UI thread: listing video adapters shells out to PowerShell."""
+        self._diag_btn.configure(state="disabled", text="Working…")
+
+        def work():
+            try:
+                path = export_diagnostics()
+                msg = "Saved as %s — the folder is open." % os.path.basename(path)
+            except Exception as e:
+                msg = "Could not write it: %s" % e
+            self.after(0, lambda: (
+                self._diag_hint.configure(text=msg),
+                self._diag_btn.configure(state="normal", text="Export diagnostics…"),
+            ))
+
+        threading.Thread(target=work, daemon=True).start()
 
     def _fill_hw_info(self):
         lines = []
@@ -1864,6 +2281,8 @@ class KaraApp(ctk.CTk):
             "mic":      self._mic_var.get(),
             "language": language_code(self._lang_var.get()),
             "theme":    self._settings.get("theme", "dark"),
+            "numbers":  self._numbers_var.get(),
+            "commands": self._commands_var.get(),
         }
         save_settings(new_settings)
         self._settings = new_settings

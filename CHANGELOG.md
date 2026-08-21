@@ -7,6 +7,90 @@ All notable changes to Kara. The format follows
 Every version below is a published release with an installer:
 [all releases](https://github.com/bryramirezp/kara/releases).
 
+## [0.3.0] - 2026-08-21
+
+Two beta testers said the app was slow and lost words. Both of them turned out to
+be running the smallest model on their processors — one of them on an RTX 3060 —
+because the download left the CUDA libraries out and hid the graphics card option
+along with them. So the first thing this release fixes is not the speed. It is
+that nobody, the developer included, could tell what they were actually running.
+
+### Added
+
+- **A second installer, for NVIDIA cards.** `Kara-Setup-GPU` carries the CUDA
+  libraries, which is why it weighs about 1.2 GB against 72 MB, and on a card it
+  is not a small difference. Nothing else is needed: no CUDA Toolkit, no separate
+  download, just a current driver. Either installer can be run over the other and
+  they share their settings. AMD and Intel cards are still not supported, because
+  ctranslate2 has no backend for them on Windows.
+- **Numbers are typed as numbers.** "mil doscientos pesos" comes out as
+  1200 pesos, "son las tres cuarenta y cinco" as son las 3:45, "tres coma cinco"
+  as 3,5 and "un veinte por ciento" as un 20%. Spanish and English. A bare "un",
+  "una" or "uno" is left alone, because those are articles and pronouns far more
+  often than they are the number one. Settings -> TEXT turns it off.
+- **Spoken punctuation.** Say "punto y aparte", "nueva linea", "abre parentesis"
+  or "signo de interrogacion" and you get the punctuation rather than the words.
+  Only phrases nobody says by accident: plain "coma" and "punto" are ordinary
+  Spanish, so they live behind the "all" setting and are off by default.
+- Opening question and exclamation marks. Whisper supplies the closing one and
+  drops the opener perhaps half the time; a Spanish sentence ending in ? now gets
+  its inverted mark back.
+- **Export diagnostics**, in Settings. Writes a zip with a report on the machine
+  (processor, graphics card, microphones and their audio backends, resolved
+  device and model, library versions), the settings as saved, and the timing log.
+  Then it opens the folder and stops: nothing is sent, and the file is yours to
+  pass on or delete.
+
+### Changed
+
+- **The graphics card option now appears whenever a graphics card can be used.**
+  Until now the packaged build hid it unconditionally and forced Device back to
+  `auto`, because no packaged build could use a card. That was true, and it was
+  also why two beta testers spent an evening reporting that the app was slow and
+  lost words while both of them ran the smallest model on their processors -- one
+  of them on an RTX 3060, with everyone involved, the developer included,
+  believing the card was in use. The three places that inferred this from "is
+  this a packaged build" now ask whether the CUDA libraries load.
+- Auto no longer refuses `large-v3-turbo` unless 6 GB of video memory is free.
+  Its weights are about 1.6 GB, so the old threshold was several times what it
+  needs, and the effect was that any card with a browser open fell all the way
+  to `small`. The scale is now 2.5 GB for `large-v3-turbo` and 1.2 GB for
+  `small`. There is deliberately no `medium` step between them: it wants as much
+  memory as large-v3-turbo while being both slower and less accurate, so
+  anywhere medium would fit, the better model fits too.
+- The timing log now runs always, rather than only when the `KARA_DEBUG_LOG`
+  environment variable was set. Nobody was ever going to run `setx` before using
+  a dictation tool, which meant the machines that were slow were exactly the ones
+  that had recorded nothing. It is capped at 2 MB, it still records timings and
+  device names and never what was said, and Kara still has no way to send it.
+  `KARA_DEBUG_LOG` is ignored from now on, since there is nothing left for it
+  to switch on; `KARA_MACHINE` still names the machine inside the file.
+- ctranslate2 gets one thread per physical core, up to eight, instead of the
+  four it defaults to regardless of the machine.
+- Beam width is 1 on the processor and stays at 5 on a graphics card. Beam 5
+  weighs five candidate transcriptions for what is usually a comma's worth of
+  difference, and on a processor that is most of the wait.
+- Silence is trimmed before transcription. Push-to-talk recordings start and end
+  with some, because the key goes down before you speak and up after you stop.
+
+  Together those three take a 66-second recording on a six-core processor from
+  14.8s to 9.1s, with byte-identical output on the test sample.
+
+- Whisper is now primed with a formatted sentence before long recordings, on
+  the theory that it copies the punctuation style of whatever it is primed with.
+  Said plainly: this could not be shown to help. On 66 seconds of clean, well
+  articulated speech the output was byte-identical with and without it. The case
+  it is aimed at is fast unpunctuated speech, which is the one case a synthesised
+  test voice cannot produce, so it ships unproven. It is skipped on recordings
+  under three seconds, where it was measured steering the result somewhere worse
+  and where there is no punctuation to recover anyway.
+
+### Fixed
+
+- Dictating no longer wipes the clipboard when it held an image or a copied
+  file. The old code read the clipboard as text, got an empty string back, and
+  wrote that empty string over the picture once the paste was done.
+
 ## [0.2.4] - 2026-08-16
 
 The window stopped looking like a Tk utility and started looking like the thing

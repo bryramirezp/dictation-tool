@@ -11,7 +11,7 @@ No account, no cloud, no subscription.
 
 <img src="docs/screenshot-main-dark.png" alt="The Kara window, listing sentences that have been dictated" width="300">
 
-[**Download for Windows**](https://github.com/bryramirezp/kara/releases/download/v0.2.4/Kara-Setup-0.2.4.exe)
+[**Download for Windows**](https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-0.3.0.exe)
  · [Website](https://bryramirezp.github.io/kara/)
  · [What's changed](CHANGELOG.md)
  · [All files](https://github.com/bryramirezp/kara/releases/latest)
@@ -46,8 +46,15 @@ that. It dictates text, and that part is free and works with no connection.
 
 ## Download
 
-**[Download the installer](https://github.com/bryramirezp/kara/releases/download/v0.2.4/Kara-Setup-0.2.4.exe)**
+**[Download the installer](https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-0.3.0.exe)**
 — <!--dl-size-->72 MB<!--/dl-size-->, for Windows 10 and 11. The link starts the download straight away.
+
+Have an NVIDIA graphics card? There is a second, much larger installer that
+carries the CUDA libraries with it:
+**[Download the GPU installer](https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-GPU-0.3.0.exe)**
+— <!--dl-size-gpu-->1200 MB<!--/dl-size-gpu-->. Same app, same settings; it just
+also knows how to use the card. Take the ordinary one if you are not sure — it
+works everywhere, and you can install the other over the top of it later.
 
 Run it and you are done. You do not need to install Python or anything else.
 
@@ -90,29 +97,38 @@ the `F13`–`F24` keys, or a side button on your mouse.
 
 ## Using a graphics card
 
-The installer runs on your processor only. That works, but a large model will be
-slow. If you have an NVIDIA graphics card and want the fast version, run it from
-the source code instead:
+There are two installers. The ordinary one runs on your processor: it is small,
+it works on any machine, and on a long dictation it is the slow one. The GPU
+installer carries the CUDA libraries, which is why it is about fifteen times
+larger, and on an NVIDIA card it is not a small difference.
+
+If you have an NVIDIA card, take
+[the GPU installer](https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-GPU-0.3.0.exe).
+You need nothing else — no CUDA Toolkit, no separate download; whatever version
+of the Toolkit you may already have installed is not used. A current graphics
+driver is the only requirement.
+
+You can install either one over the other. They are the same program and they
+share their settings.
+
+**AMD and Intel cards are not supported yet.** ctranslate2, the engine
+underneath, has no backend for them on Windows, so Kara falls back to your
+processor and there is nothing in Settings that would change that. It is being
+worked on.
+
+Whichever build you have, **Device → auto** does the right thing: the card if it
+is usable, the processor if it is not. The **gpu** option only appears where the
+CUDA libraries are really present, so it can no longer be a button that breaks
+the app.
+
+### Running from source with a card
 
 ```bat
 git clone https://github.com/bryramirezp/kara.git
 cd kara
-py -3 -m pip install -r requirements.txt
-py -3 -m pip install nvidia-cublas-cu12
+py -3 -m pip install -r requirements-gpu.txt
 launch.bat
 ```
-
-That one extra package is all you need. The CUDA Toolkit you may already have on
-your computer is not used, so it does not matter which version it is.
-
-The installed version has no graphics card option at all: it ships without the
-CUDA libraries, which are larger than everything else put together, so **gpu**
-is not in the dropdown. Run it from the source code, as above, and the option
-appears.
-
-Running from source, if the card is not ready the app quietly uses your
-processor instead. It only complains when you set Device to **gpu** yourself,
-and then it tells you what to install.
 
 ## Running from source
 
@@ -170,16 +186,51 @@ Spanish, English, Portuguese, French, German and Italian.
 
 ### Do I need a graphics card?
 
-No. The download runs on your processor. See below if you have an NVIDIA card
-and want it faster.
+No. The ordinary download runs on your processor and works on any machine. If
+you have an NVIDIA card there is a separate, larger installer that uses it; see
+[Using a graphics card](#using-a-graphics-card).
+
+## Dictating numbers and punctuation
+
+Numbers are typed as numbers. Say "mil doscientos pesos" and you get
+`1200 pesos`; "son las tres cuarenta y cinco" gives `son las 3:45`; "un veinte
+por ciento" gives `un 20%`. A bare "un", "una" or "uno" is left as a word, since
+they are articles far more often than they are the number.
+
+For punctuation, say the name of the mark:
+
+| Say | Get |
+| --- | --- |
+| punto y aparte | a new paragraph |
+| nueva linea | a line break |
+| abre parentesis / cierra parentesis | ( ) |
+| signo de interrogacion | ? |
+| dos puntos | : |
+| punto y coma | ; |
+| arroba | @ |
+
+These are all phrases nobody says by accident. Plain "coma" and "punto" are
+ordinary Spanish words -- "el punto de partida", "la coma va aca" -- so they are
+off by default. Settings -> TEXT has a switch that turns them on, and another
+that turns the whole thing off.
 
 ## Your privacy
 
 - Your voice never leaves your computer.
 - The microphone is only on while you hold the key. The rest of the time it is
   closed, so nothing is listening.
-- The text is pasted with the clipboard, and whatever you had copied before is
-  put back afterwards.
+- The text is pasted with the clipboard, and whatever text you had copied before
+  is put back afterwards. An image or a copied file cannot be handed back
+  through the clipboard, so in that case the dictated text is left there instead.
+- Kara keeps a log of how long each dictation took, in
+  `%LOCALAPPDATA%\Kara\trace.jsonl`. It holds timings, model and device
+  names, and how many characters came out — never a word of what you said, and
+  there is no setting that would make it record that. It is capped at 2 MB and
+  the oldest entries are dropped.
+- **Nothing is sent anywhere.** Kara contains no network code beyond downloading
+  the speech model on first run. If you ever want to send me that log to explain
+  why the app is slow on your machine, Settings → Export diagnostics packs it
+  into a zip and opens the folder, and you decide what happens to the file.
 
 ## License
 
