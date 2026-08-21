@@ -7,6 +7,28 @@ All notable changes to Kara. The format follows
 Every version below is a published release with an installer:
 [all releases](https://github.com/bryramirezp/kara/releases).
 
+## [0.3.1] - 2026-08-21
+
+Kara's own text — buttons, labels, hints, messages — was English no matter what
+you dictated in. This release fixes that: the installer now offers all six
+languages Kara already speaks, and the choice carries into the app itself, not
+just into what it types for you.
+
+### Added
+
+- **The installer's own language picker now sets Kara's UI language.** Choose
+  Spanish, English, Portuguese, French, German or Italian at setup, and every
+  label, button, menu and message in Kara comes up in that language — separate
+  from the LANGUAGE setting, which is still just what you dictate in.
+- **An APP LANGUAGE selector in Settings**, so the UI language can be changed
+  later without reinstalling. Applies right away, the same as the theme switch.
+
+### Note
+
+- Spanish and English were written and checked by hand. Portuguese, French,
+  German and Italian are a first-pass translation — flag anything that reads
+  oddly and it'll get fixed in a follow-up patch.
+
 ## [0.3.0] - 2026-08-21
 
 Two beta testers said the app was slow and lost words. Both of them turned out to
@@ -174,6 +196,8 @@ the website advertises.
 
 First release, under the name Dictation Tool.
 
+[0.3.1]: https://github.com/bryramirezp/kara/releases/tag/v0.3.1
+[0.3.0]: https://github.com/bryramirezp/kara/releases/tag/v0.3.0
 [0.2.4]: https://github.com/bryramirezp/kara/releases/tag/v0.2.4
 [0.2.3]: https://github.com/bryramirezp/kara/releases/tag/v0.2.3
 [0.2.2]: https://github.com/bryramirezp/kara/releases/tag/v0.2.2

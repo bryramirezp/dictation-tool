@@ -5,7 +5,7 @@ Hold the configured hotkey to record. Release to transcribe and paste.
 Default hotkey: Insert
 """
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 import sys
 import os
@@ -156,6 +156,7 @@ from pynput.keyboard import Key, KeyCode, Listener as KeyboardListener
 # anything else here, which is what lets tests/test_text.py cover it without
 # starting a window or opening a microphone.
 import karatext
+import karai18n
 
 pyautogui.FAILSAFE = False  # corner-of-screen abort would break paste mid-flow
 
@@ -314,6 +315,7 @@ DEFAULT_SETTINGS = {
     "hotkey":   "key:insert",
     "mic":      "auto",
     "language": "es",
+    "ui_language": "es",
     "theme":    "dark",
     # "digits" writes numbers as numbers; "words" leaves whatever Whisper said.
     "numbers":  "digits",
@@ -367,6 +369,13 @@ def _migrate(s):
     # gone and old files fall back to the default language.
     if s.get("language") not in LANGUAGE_CODES:
         s["language"] = DEFAULT_SETTINGS["language"]
+
+    # New in 0.3.1. A settings file written by an older build has no such key,
+    # and the installer only seeds one on a first install (see installer.iss).
+    # Best guess: whatever language they already dictate in, since it is the
+    # same 6-code list and most people speak the language they dictate in.
+    if s.get("ui_language") not in LANGUAGE_CODES:
+        s["ui_language"] = s["language"]
 
     # "gpu" can only ever fail where the CUDA libraries are missing, which is
     # the ordinary download and any machine without a supported card. Settings
@@ -539,9 +548,9 @@ def solve_gray(bg_hex, target_ratio):
     return "#%02x%02x%02x" % (v, v, v)
 
 # ── Hotkey helpers ────────────────────────────────────────────────────────────
-_MOUSE_DISPLAY = {
-    "left": "Left Click", "right": "Right Click",
-    "middle": "Middle Click", "x1": "Mouse 4", "x2": "Mouse 5",
+_MOUSE_DISPLAY_KEYS = {
+    "left": "mouse_left", "right": "mouse_right",
+    "middle": "mouse_middle", "x1": "mouse_x1", "x2": "mouse_x2",
 }
 
 def parse_hotkey_str(s):
@@ -562,7 +571,8 @@ def hotkey_display_name(s):
         return "Insert"
     if s.startswith("mouse:"):
         name = s[6:]
-        return _MOUSE_DISPLAY.get(name, name.replace("_", " ").title())
+        key = _MOUSE_DISPLAY_KEYS.get(name)
+        return karai18n.t(key) if key else name.replace("_", " ").title()
     elif s.startswith("key:"):
         name = s[4:]
         return name.replace("_", " ").title()
@@ -951,8 +961,7 @@ def ensure_model_files(model_size):
         if verdict != "locked":
             break
         if attempt == 0:
-            ui_queue.put(("log", "Something else has the model files open. "
-                                 "Waiting for it.", "dim"))
+            ui_queue.put(("log", karai18n.t("log_files_locked"), "dim"))
         time.sleep(_LOCK_WAIT)
 
     if verdict == "ok":
@@ -965,8 +974,7 @@ def ensure_model_files(model_size):
     # so the whole repo folder goes and the download starts over.
     repo_dir = os.path.dirname(os.path.dirname(path))
     if os.path.basename(repo_dir).startswith("models--"):
-        ui_queue.put(("log", "The downloaded model files are incomplete. "
-                             "Getting them again.", "dim"))
+        ui_queue.put(("log", karai18n.t("log_files_incomplete"), "dim"))
         shutil.rmtree(repo_dir, ignore_errors=True)
         path = download_model(model_size)
         if _snapshot_verdict(path) == "ok":
@@ -976,22 +984,15 @@ def ensure_model_files(model_size):
 
 
 def _cannot_open_msg():
-    return ("Kara could not open the model files. Another program may have them "
-            "open -- antivirus software does this for a while after a download. "
-            "Wait a minute and open Kara again, or restart the computer if it "
-            "keeps happening.")
+    return karai18n.t("err_cannot_open")
 
 
 def _locked_model_msg():
-    return ("Another program has the model files open, so Kara can't read them. "
-            "Antivirus software does this for a while after a download. Wait a "
-            "minute and open Kara again, or restart the computer if it keeps "
-            "happening.")
+    return karai18n.t("err_locked_model")
 
 
 def _unreadable_model_msg(where):
-    return ("The model files can't be read, even after downloading them again. "
-            f"Close Kara, delete this folder, and open it again:  {where}")
+    return karai18n.t("err_unreadable_model", where=where)
 
 
 def load_model(device, compute, model_size, on_done=None, on_error=None):
@@ -1006,14 +1007,9 @@ def load_model(device, compute, model_size, on_done=None, on_error=None):
             # telling someone running the downloaded build to use pip would send
             # them looking for something that is not there.
             if IS_PACKAGED:
-                raise RuntimeError(
-                    "This download only uses your processor. For an NVIDIA "
-                    "card, get the GPU installer from the releases page: "
-                    f"{SOURCE_URL}/releases")
-            raise RuntimeError(
-                "Your graphics card is missing some files. Open a terminal and "
-                "run:  pip install nvidia-cublas-cu12  ...or set Device back "
-                "to auto in settings.")
+                raise RuntimeError(karai18n.t(
+                    "err_cpu_only_packaged", url=f"{SOURCE_URL}/releases"))
+            raise RuntimeError(karai18n.t("err_cpu_only_source"))
         # Downloading outside the lock: it can take minutes on a first run, and
         # holding the lock there would freeze a transcription already in flight.
         model_path = ensure_model_files(model_size)
@@ -1061,7 +1057,7 @@ def audio_callback(indata, frames, time_info, status):
         input_level = min(1.0, max(0.0, (db + 55.0) / 45.0))
 
 def _idle_status():
-    return "READY"
+    return karai18n.t("status_ready")
 
 def _key_label():
     """Just the key, for the keycap under the log."""
@@ -1120,7 +1116,7 @@ def _open_stream():
             return True
         except Exception as e:
             last_err = e
-    ui_queue.put(("log", f"Could not open the microphone: {last_err}", "error"))
+    ui_queue.put(("log", karai18n.t("log_mic_open_failed", err=last_err), "error"))
     return False
 
 def _close_stream():
@@ -1145,13 +1141,13 @@ def start_recording():
     if not ok:
         with status_lock:
             recording = False
-        ui_queue.put(("status", "Can't use the microphone. Check settings.",
+        ui_queue.put(("status", karai18n.t("status_mic_unavailable"),
                       theme_color("status_error")))
         trace.finish(err="mic_open_failed")
         return
     if tray_icon:
         tray_icon.icon  = TRAY_REC
-        tray_icon.title = "Kara — recording"
+        tray_icon.title = karai18n.t("tray_title_recording")
     ui_queue.put(("recording", True))
     # Everything above is what the user waits through before the window says
     # LISTENING, which is the number the whole trace exists to explain.
@@ -1162,7 +1158,7 @@ def stop_and_transcribe():
         _close_stream()
     if tray_icon:
         tray_icon.icon  = TRAY_IDLE
-        tray_icon.title = "Kara — ready"
+        tray_icon.title = karai18n.t("tray_title_ready")
     ui_queue.put(("recording", False))
     if not audio_frames:
         ui_queue.put(("status", _idle_status(), theme_color("status_idle")))
@@ -1171,7 +1167,7 @@ def stop_and_transcribe():
     data = np.concatenate(audio_frames, axis=0).flatten().astype(np.float32)
     sr = stream_samplerate
     dur = len(data) / sr
-    ui_queue.put(("log", f"Recorded {dur:.1f}s", "dim"))
+    ui_queue.put(("log", karai18n.t("log_recorded", dur=dur), "dim"))
     # How much speech actually landed, against how long the key was down: the
     # gap between the two is audio lost to the microphone still waking up.
     trace.set(audio_s=round(dur, 2))
@@ -1179,7 +1175,7 @@ def stop_and_transcribe():
 
 def _transcribe(audio_data, sr):
     if model_obj is None:
-        ui_queue.put(("log", "Still getting ready. Try again in a moment.", "error"))
+        ui_queue.put(("log", karai18n.t("log_not_ready_transcribe"), "error"))
         return
     try:
         dur  = len(audio_data) / sr
@@ -1187,7 +1183,7 @@ def _transcribe(audio_data, sr):
         # Silence guard: normalizing near-silence to full scale makes Whisper
         # hallucinate text, so bail out early instead.
         if dur < 0.2 or peak < 0.005:
-            ui_queue.put(("log", "Too short or too quiet — nothing to type.", "dim"))
+            ui_queue.put(("log", karai18n.t("log_too_short"), "dim"))
             ui_queue.put(("status", _idle_status(), theme_color("status_idle")))
             trace.finish(err="too_short_or_quiet", peak=round(peak, 4))
             return
@@ -1276,11 +1272,11 @@ def _transcribe(audio_data, sr):
                     pyperclip.copy(prev)
             trace.finish()
         else:
-            ui_queue.put(("log", "I didn't hear any words.", "dim"))
+            ui_queue.put(("log", karai18n.t("log_no_words"), "dim"))
             ui_queue.put(("status", _idle_status(), theme_color("status_idle")))
             trace.finish(err="no_words")
     except Exception as e:
-        ui_queue.put(("log", f"Something went wrong: {e}", "error"))
+        ui_queue.put(("log", karai18n.t("log_error_generic", err=e), "error"))
         ui_queue.put(("status", _idle_status(), theme_color("status_idle")))
         # The class name, not str(e): a message can carry a file path, and a
         # path can carry the user's name.
@@ -1319,9 +1315,9 @@ def _may_record():
     if now - _last_not_ready_log > 3.0:
         _last_not_ready_log = now
         if state == "error":
-            ui_queue.put(("log", err or "Kara could not get ready.", "error"))
+            ui_queue.put(("log", err or karai18n.t("err_default_not_ready"), "error"))
         else:
-            ui_queue.put(("log", "Still getting ready — hold on a moment.", "dim"))
+            ui_queue.put(("log", karai18n.t("log_still_getting_ready"), "dim"))
     return False
 
 # ── Mouse listener ────────────────────────────────────────────────────────────
@@ -1525,32 +1521,44 @@ def _quit_tray(icon, item):
     icon.stop()
     shutdown()
 
+def _tray_menu():
+    return pystray.Menu(
+        pystray.MenuItem(karai18n.t("tray_title"), None, enabled=False),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem(karai18n.t("tray_open"), _show_window, default=True),
+        pystray.MenuItem(karai18n.t("tray_close"), _quit_tray),
+    )
+
+def refresh_tray_menu():
+    """Rebuild the tray's own text after a UI-language change. It is not a Tk
+    widget -- _rebuild_ui() never touches it -- so it needs its own call."""
+    if tray_icon:
+        tray_icon.menu = _tray_menu()
+        tray_icon.update_menu()
+
 def run_tray():
     global tray_icon
     try:
-        menu = pystray.Menu(
-            pystray.MenuItem("Kara — speak to type", None, enabled=False),
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Open", _show_window, default=True),
-            pystray.MenuItem("Close the app", _quit_tray),
-        )
-        tray_icon = pystray.Icon("Kara", TRAY_IDLE, "Kara", menu)
+        tray_icon = pystray.Icon("Kara", TRAY_IDLE, "Kara", _tray_menu())
         tray_icon.run()
     except Exception as e:
-        ui_queue.put(("log", f"Could not add the icon near the clock: {e}", "error"))
-        ui_queue.put(("status", "No tray icon — use the X button to close.",
+        ui_queue.put(("log", karai18n.t("log_tray_failed", err=e), "error"))
+        ui_queue.put(("status", karai18n.t("status_no_tray"),
                       theme_color("status_error")))
 
 # ── GUI ───────────────────────────────────────────────────────────────────────
 MODEL_OPTIONS = ["auto", "tiny", "small", "medium", "large-v3-turbo"]
 
-MODEL_DESCRIPTIONS = {
-    "auto":            "Picks the best model your computer can run.",
-    "tiny":            "The fastest, but it makes more mistakes.",
-    "small":           "A good middle choice. Best if you have no graphics card.",
-    "medium":          "More accurate, but slow without a graphics card.",
-    "large-v3-turbo":  "The most accurate. You need a graphics card for this one.",
+MODEL_DESC_KEYS = {
+    "auto":            "model_desc_auto",
+    "tiny":            "model_desc_tiny",
+    "small":           "model_desc_small",
+    "medium":          "model_desc_medium",
+    "large-v3-turbo":  "model_desc_large_v3_turbo",
 }
+
+def model_description(model_key):
+    return karai18n.t(MODEL_DESC_KEYS.get(model_key, "model_desc_auto"))
 
 class KaraApp(ctk.CTk):
     W, H = 320, 480
@@ -1769,7 +1777,7 @@ class KaraApp(ctk.CTk):
         if self._model_is_ready:
             status_text, status_color = _idle_status(), t["status_idle"]
         else:
-            status_text, status_color = "GETTING READY", t["status_loading"]
+            status_text, status_color = karai18n.t("status_getting_ready_caps"), t["status_loading"]
         # A phase word in monospace, not a sentence. It changes several times a
         # minute beside a meter that is also moving, and a short fixed-width word
         # reads as a state changing rather than as text being replaced.
@@ -1835,7 +1843,7 @@ class KaraApp(ctk.CTk):
                       text_color=t["icon_btn"], font=("Segoe UI", 15),
                       command=self._show_main).pack(side="left", padx=8)
 
-        ctk.CTkLabel(hdr, text="Settings", font=("Segoe UI Semibold", 14),
+        ctk.CTkLabel(hdr, text=karai18n.t("settings_title"), font=("Segoe UI Semibold", 14),
                      text_color=t["text_title"]).pack(side="left")
 
         ctk.CTkButton(hdr, text="✕", width=32, height=28, corner_radius=8,
@@ -1854,7 +1862,7 @@ class KaraApp(ctk.CTk):
                                           text_color=t["status_idle"])
         self._apply_status.pack(pady=(6, 0))
 
-        ctk.CTkButton(footer, text="Save changes", height=36, corner_radius=9,
+        ctk.CTkButton(footer, text=karai18n.t("btn_save_changes"), height=36, corner_radius=9,
                       fg_color=t["accent_bg"], hover_color=t["accent_hover"],
                       text_color=t["text_on_accent"],
                       font=("Segoe UI Semibold", 13),
@@ -1934,18 +1942,18 @@ class KaraApp(ctk.CTk):
             return seg
 
         # ── Appearance
-        section("APPEARANCE")
+        section(karai18n.t("section_appearance"))
         self._theme_var = ctk.StringVar(value=self._settings.get("theme", "dark"))
         self._theme_seg = segmented(["dark", "light"], self._theme_var,
                                     command=self._on_theme_change)
-        hint("Changes right away. You do not need to save.")
+        hint(karai18n.t("hint_appearance"))
 
         # ── Hotkey
-        section("HOTKEY")
+        section(karai18n.t("section_hotkey"))
         current_hk = self._settings.get("hotkey", "key:insert")
         self._hotkey_btn = ctk.CTkButton(
             body,
-            text=f"[ {hotkey_display_name(current_hk)} ]",
+            text=karai18n.t("hotkey_btn_label", name=hotkey_display_name(current_hk)),
             height=36, corner_radius=9,
             fg_color=t["bg_button"], hover_color=t["bg_button_hover"],
             text_color=t["text_on_button"],
@@ -1953,12 +1961,12 @@ class KaraApp(ctk.CTk):
             command=self._capture_hotkey_start,
         )
         self._hotkey_btn.pack(fill="x", pady=(0, 4))
-        self._hotkey_hint = hint("Click to change it. You can use a key or a mouse button.")
+        self._hotkey_hint = hint(karai18n.t("hint_hotkey"))
 
         # ── Microphone
         mic_row = ctk.CTkFrame(body, fg_color="transparent")
         mic_row.pack(fill="x", pady=(0, 6))
-        ctk.CTkLabel(mic_row, text="MICROPHONE", font=("Segoe UI", 9),
+        ctk.CTkLabel(mic_row, text=karai18n.t("section_microphone"), font=("Segoe UI", 9),
                      text_color=t["text_caption"]).pack(side="left")
         ctk.CTkButton(mic_row, text="↻", width=24, height=20, corner_radius=6,
                       fg_color="transparent", hover_color=t["hover_neutral"],
@@ -1967,23 +1975,27 @@ class KaraApp(ctk.CTk):
 
         self._mic_var = ctk.StringVar(value=self._settings.get("mic", "auto"))
         self._mic_menu = option_menu(self._mic_var, self._mic_values(), font_size=11)
-        self._mic_hint = hint(
-            "Leave this on auto to use your normal Windows microphone. The app "
-            "checks again every time you record, so you can plug in or unplug a "
-            "headset while it is open.")
+        self._mic_hint = hint(karai18n.t("hint_microphone"))
 
-        # ── Language
-        section("LANGUAGE")
+        # ── Language (speech recognition)
+        section(karai18n.t("section_language"))
         self._lang_var = ctk.StringVar(
             value=language_name(self._settings.get("language", DEFAULT_SETTINGS["language"])))
         self._lang_menu = option_menu(
             self._lang_var, [LANGUAGE_NAMES[c] for c in LANGUAGE_CODES])
-        hint("Pick the language you speak. The app is much faster when it does "
-             "not have to work out the language on its own, and it makes fewer "
-             "mistakes on short recordings.")
+        hint(karai18n.t("hint_language"))
+
+        # ── App language (UI text)
+        section(karai18n.t("section_app_language"))
+        self._ui_lang_var = ctk.StringVar(
+            value=language_name(self._settings.get("ui_language", DEFAULT_SETTINGS["ui_language"])))
+        self._ui_lang_menu = option_menu(
+            self._ui_lang_var, [LANGUAGE_NAMES[c] for c in LANGUAGE_CODES],
+            command=self._on_ui_language_change)
+        hint(karai18n.t("hint_app_language"))
 
         # ── Device
-        section("DEVICE")
+        section(karai18n.t("section_device"))
         self._device_var = ctk.StringVar(value=self._settings.get("device", "auto"))
         # Offered wherever the CUDA libraries actually load, whatever kind of
         # build this is. Hiding it from every packaged build -- which was right
@@ -1997,22 +2009,20 @@ class KaraApp(ctk.CTk):
             text=self._device_hint_text()))
 
         # ── Model
-        section("MODEL")
+        section(karai18n.t("section_model"))
         self._model_var = ctk.StringVar(value=self._settings.get("model", "auto"))
         self._model_menu = option_menu(
             self._model_var, MODEL_OPTIONS,
             command=lambda _: self._model_hint.configure(
-                text=MODEL_DESCRIPTIONS.get(self._model_var.get(), "")))
-        self._model_hint = hint(
-            MODEL_DESCRIPTIONS.get(self._settings.get("model", "auto"), ""))
+                text=model_description(self._model_var.get())))
+        self._model_hint = hint(model_description(self._settings.get("model", "auto")))
 
         # ── Text
-        section("TEXT")
+        section(karai18n.t("section_text"))
         self._numbers_var = ctk.StringVar(
             value=self._settings.get("numbers", DEFAULT_SETTINGS["numbers"]))
         self._numbers_seg = segmented(NUMBER_MODES, self._numbers_var)
-        hint("With digits, \"mil doscientos\" is typed as 1200 and \"las tres "
-             "cuarenta y cinco\" as las 3:45.")
+        hint(karai18n.t("hint_numbers"))
 
         self._commands_var = ctk.StringVar(
             value=self._settings.get("commands", DEFAULT_SETTINGS["commands"]))
@@ -2029,19 +2039,15 @@ class KaraApp(ctk.CTk):
         threading.Thread(target=self._fill_hw_info, daemon=True).start()
 
         # ── Diagnostics
-        section("DIAGNOSTICS")
+        section(karai18n.t("section_diagnostics"))
         self._diag_btn = ctk.CTkButton(
-            body, text="Export diagnostics…", height=36, corner_radius=9,
+            body, text=karai18n.t("btn_export_diagnostics"), height=36, corner_radius=9,
             fg_color=t["bg_button"], hover_color=t["bg_button_hover"],
             text_color=t["text_on_button"], font=("Segoe UI", 12),
             command=self._export_diagnostics,
         )
         self._diag_btn.pack(fill="x", pady=(0, 4))
-        self._diag_hint = hint(
-            "Writes a zip with how long each dictation took, your settings, and "
-            "what this computer is: processor, graphics card, microphones. It "
-            "never contains anything you dictated. Nothing is sent — the file "
-            "just lands in a folder, and it is yours to send or delete.")
+        self._diag_hint = hint(karai18n.t("hint_diagnostics"))
 
     # ── Theme ─────────────────────────────────────────────────────────────────
     def _on_theme_change(self, name):
@@ -2052,6 +2058,17 @@ class KaraApp(ctk.CTk):
         self.theme = THEMES[name]
         ctk.set_appearance_mode(name)
         self._rebuild_ui()
+
+    # ── App language ──────────────────────────────────────────────────────────
+    def _on_ui_language_change(self, name):
+        code = language_code(name)
+        if code == self._settings.get("ui_language"):
+            return
+        self._settings["ui_language"] = code
+        save_settings(dict(self._settings))
+        karai18n.set_language(code)
+        self._rebuild_ui()
+        refresh_tray_menu()
 
     def _rebuild_ui(self):
         keep_view = self._view
@@ -2089,11 +2106,11 @@ class KaraApp(ctk.CTk):
                 break
         _capturing_hotkey = True
         self._hotkey_btn.configure(
-            text="Press a key or a mouse button",
+            text=karai18n.t("hotkey_capture_prompt"),
             fg_color=self.theme["capture_bg"],
             text_color=self.theme["text_on_capture"],
         )
-        self._hotkey_hint.configure(text="Waiting for you to press something...")
+        self._hotkey_hint.configure(text=karai18n.t("hotkey_capture_waiting"))
         self.after(100, self._capture_hotkey_poll)
 
     def _capture_hotkey_poll(self):
@@ -2105,13 +2122,11 @@ class KaraApp(ctk.CTk):
             # Left click would turn every normal click into a recording
             if result == "mouse:left":
                 self._hotkey_btn.configure(
-                    text=f"[ {hotkey_display_name(_current_hotkey_str)} ]",
+                    text=karai18n.t("hotkey_btn_label", name=hotkey_display_name(_current_hotkey_str)),
                     fg_color=self.theme["bg_button"],
                     text_color=self.theme["text_on_button"],
                 )
-                self._hotkey_hint.configure(
-                    text="You can't use left click — it would record every time "
-                         "you click. Try another button.")
+                self._hotkey_hint.configure(text=karai18n.t("hotkey_capture_left_click_blocked"))
                 return
 
             # Apply immediately — no Apply button needed for hotkey
@@ -2123,11 +2138,11 @@ class KaraApp(ctk.CTk):
 
             name = hotkey_display_name(result)
             self._hotkey_btn.configure(
-                text=f"[ {name} ]",
+                text=karai18n.t("hotkey_btn_label", name=name),
                 fg_color=self.theme["bg_button"],
                 text_color=self.theme["text_on_button"],
             )
-            self._hotkey_hint.configure(text="Saved. Click again to change it.")
+            self._hotkey_hint.configure(text=karai18n.t("hotkey_capture_saved"))
             self._hold_label.configure(text=_key_label())
         except queue.Empty:
             if _capturing_hotkey:
@@ -2211,45 +2226,36 @@ class KaraApp(ctk.CTk):
     def _commands_hint_text(self):
         v = self._commands_var.get()
         if v == "off":
-            return "Nothing you say is treated as punctuation."
+            return karai18n.t("hint_commands_off")
         if v == "all":
-            return ("Adds plain \"coma\" and \"punto\" on top of the phrases. "
-                    "Careful: those are ordinary words, so \"el punto de partida\" "
-                    "will come out with a full stop in the middle of it.")
-        return ("Say \"punto y aparte\", \"nueva línea\", \"abre paréntesis\" or "
-                "\"signo de interrogación\" and you get the punctuation instead of "
-                "the words. Only phrases nobody says by accident.")
+            return karai18n.t("hint_commands_all")
+        return karai18n.t("hint_commands_safe")
 
     def _device_hint_text(self):
         v = self._device_var.get()
         if v == "auto":
             if GPU_AVAILABLE:
-                return ("Uses your graphics card if you have one, and your "
-                        "processor if you do not. This is the safe choice.")
+                return karai18n.t("hint_device_auto_gpu")
             if IS_PACKAGED:
-                return ("Uses your processor. This download does not come with "
-                        "graphics card support, to keep it small — there is a "
-                        "separate GPU download for NVIDIA cards.")
-            return ("Uses your processor. No usable CUDA libraries were found, "
-                    "so a graphics card is not on offer.")
+                return karai18n.t("hint_device_auto_packaged_cpu")
+            return karai18n.t("hint_device_auto_source_cpu")
         if v == "cpu":
-            return ("Always uses the processor. Slower, but it works on any computer.")
-        return ("Always uses the graphics card. Much faster, but it only works "
-                "with an NVIDIA card.")
+            return karai18n.t("hint_device_cpu")
+        return karai18n.t("hint_device_gpu")
 
     def _export_diagnostics(self):
         """Off the UI thread: listing video adapters shells out to PowerShell."""
-        self._diag_btn.configure(state="disabled", text="Working…")
+        self._diag_btn.configure(state="disabled", text=karai18n.t("status_working"))
 
         def work():
             try:
                 path = export_diagnostics()
-                msg = "Saved as %s — the folder is open." % os.path.basename(path)
+                msg = karai18n.t("msg_diag_saved", name=os.path.basename(path))
             except Exception as e:
-                msg = "Could not write it: %s" % e
+                msg = karai18n.t("msg_diag_failed", err=e)
             self.after(0, lambda: (
                 self._diag_hint.configure(text=msg),
-                self._diag_btn.configure(state="normal", text="Export diagnostics…"),
+                self._diag_btn.configure(state="normal", text=karai18n.t("btn_export_diagnostics")),
             ))
 
         threading.Thread(target=work, daemon=True).start()
@@ -2261,14 +2267,14 @@ class KaraApp(ctk.CTk):
             n = ctranslate2.get_cuda_device_count()
             if n > 0:
                 vram = _get_vram_mb()
-                lines.append(f"Graphics card: yes ({vram} MB)")
+                lines.append(karai18n.t("hw_gpu_yes", vram=vram))
             else:
-                lines.append("Graphics card: none the app can use")
+                lines.append(karai18n.t("hw_gpu_none"))
         except Exception:
-            lines.append("Graphics card: none the app can use")
+            lines.append(karai18n.t("hw_gpu_none"))
         import psutil
         ram = psutil.virtual_memory().total // (1024 ** 3)
-        lines.append(f"Memory: {ram} GB")
+        lines.append(karai18n.t("hw_memory", ram=ram))
         text = "\n".join(lines)
         self.after(0, lambda: self._hw_label.configure(text=text))
 
@@ -2280,6 +2286,7 @@ class KaraApp(ctk.CTk):
             "hotkey":   self._settings.get("hotkey", "key:insert"),
             "mic":      self._mic_var.get(),
             "language": language_code(self._lang_var.get()),
+            "ui_language": self._settings.get("ui_language", DEFAULT_SETTINGS["ui_language"]),
             "theme":    self._settings.get("theme", "dark"),
             "numbers":  self._numbers_var.get(),
             "commands": self._commands_var.get(),
@@ -2288,14 +2295,15 @@ class KaraApp(ctk.CTk):
         self._settings = new_settings
         _trigger_down = False
 
-        self._apply_status.configure(text="Getting ready...",
+        self._apply_status.configure(text=karai18n.t("status_getting_ready"),
                                      text_color=self.theme["status_reload_text"])
         self._show_main()
-        ui_queue.put(("log", "Settings saved. Getting ready...", "dim"))
-        ui_queue.put(("log", f"Microphone: {current_mic_name()}", "dim"))
-        ui_queue.put(("log", f"Language: {language_name(new_settings['language'])} · "
-                             f"Key: {hotkey_display_name(new_settings['hotkey'])}", "dim"))
-        ui_queue.put(("status", "Getting ready...", self.theme["status_reload"]))
+        ui_queue.put(("log", karai18n.t("log_settings_saved"), "dim"))
+        ui_queue.put(("log", karai18n.t("log_microphone", name=current_mic_name()), "dim"))
+        ui_queue.put(("log", karai18n.t(
+            "log_language_key", lang=language_name(new_settings['language']),
+            key=hotkey_display_name(new_settings['hotkey'])), "dim"))
+        ui_queue.put(("status", karai18n.t("status_getting_ready"), self.theme["status_reload"]))
         # The old model is still loaded and would happily transcribe, but with
         # settings the user has already been told were applied. Off until the
         # new one is up.
@@ -2311,8 +2319,8 @@ class KaraApp(ctk.CTk):
         )
 
     def _reload_failed(self, message):
-        ui_queue.put(("log", f"Could not get ready: {message}", "error"))
-        ui_queue.put(("status", "Something failed. Check settings.",
+        ui_queue.put(("log", karai18n.t("log_could_not_get_ready", err=message), "error"))
+        ui_queue.put(("status", karai18n.t("status_failed_check_settings"),
                       theme_color("status_error")))
         ui_queue.put(("model_error",))
 
@@ -2385,14 +2393,14 @@ class KaraApp(ctk.CTk):
                 elif msg[0] == "model_ready":
                     self._set_meter("idle")
                     d, c, m = msg[1], msg[2], msg[3]
-                    where = "graphics card" if d == "cuda" else "processor"
-                    label = f"{m} model  ·  running on your {where}"
+                    where = karai18n.t("device_label_gpu" if d == "cuda" else "device_label_cpu")
+                    label = karai18n.t("label_model_running", model=m, where=where)
                     self._last_model_label = label
                     self._model_is_ready = True
                     self._set_hold_enabled(True)
                     self._model_info.configure(text=label, text_color=self.theme["model_ready_text"])
                     self._status.configure(text=_idle_status(), text_color=self.theme["status_idle"])
-                    self._append_log("Ready to use.", "ok")
+                    self._append_log(karai18n.t("log_ready_to_use"), "ok")
                 elif msg[0] == "model_loading":
                     self._model_is_ready = False
                     self._set_hold_enabled(False)
@@ -2411,12 +2419,12 @@ class KaraApp(ctk.CTk):
         if is_rec:
             self._dot.configure(image=mark_image("recording"))
             self._stage_mark.configure(image=mark_image("recording", 13))
-            self._status.configure(text="LISTENING", text_color=t["rec_status_text"])
+            self._status.configure(text=karai18n.t("status_listening"), text_color=t["rec_status_text"])
             self._set_meter("recording")
         else:
             self._dot.configure(image=mark_image("idle"))
             self._stage_mark.configure(image=mark_image("idle", 13))
-            self._status.configure(text="WRITING IT DOWN", text_color=t["processing_text"])
+            self._status.configure(text=karai18n.t("status_writing"), text_color=t["processing_text"])
             self._set_meter("idle")
 
     def _append_log(self, text, tag):
@@ -2449,8 +2457,7 @@ class KaraApp(ctk.CTk):
         # No taskbar entry (overrideredirect) — without a tray icon the window
         # would be unrecoverable, so refuse to hide in that case.
         if tray_icon is None:
-            ui_queue.put(("log", "There is no icon near the clock, so you could "
-                                 "not get this window back. Hiding is turned off.", "dim"))
+            ui_queue.put(("log", karai18n.t("log_no_tray_no_minimize"), "dim"))
             return
         self.withdraw()
 
@@ -2482,16 +2489,17 @@ def main():
 
     settings = load_settings()
     _current_hotkey_str = settings.get("hotkey", "key:insert")
+    karai18n.set_language(settings.get("ui_language", "es"))
 
     device, compute, model_size = resolve_config(settings)
 
     app_gui = KaraApp()
-    ui_queue.put(("log", "Getting ready...", "dim"))
-    ui_queue.put(("log", "The first time you run this, it has to download some "
-                         "files. That can take a few minutes.", "dim"))
-    ui_queue.put(("log", f"Language: {language_name(settings['language'])} · "
-                         f"Key: {hotkey_display_name(_current_hotkey_str)}", "dim"))
-    ui_queue.put(("status", "Getting ready...", theme_color("status_loading")))
+    ui_queue.put(("log", karai18n.t("status_getting_ready"), "dim"))
+    ui_queue.put(("log", karai18n.t("log_first_run_download"), "dim"))
+    ui_queue.put(("log", karai18n.t(
+        "log_language_key", lang=language_name(settings['language']),
+        key=hotkey_display_name(_current_hotkey_str)), "dim"))
+    ui_queue.put(("status", karai18n.t("status_getting_ready"), theme_color("status_loading")))
     app_gui.update()
     app_gui.after(200, lambda: (app_gui._set_meter("loading"), app_gui._start_meter()))
 
@@ -2499,8 +2507,8 @@ def main():
         ui_queue.put(("model_ready", d, c, m))
 
     def _on_model_error(e):
-        ui_queue.put(("log", f"Could not get ready: {e}", "error"))
-        ui_queue.put(("status", "Something failed. Check settings.",
+        ui_queue.put(("log", karai18n.t("log_could_not_get_ready", err=e), "error"))
+        ui_queue.put(("status", karai18n.t("status_failed_check_settings"),
                       theme_color("status_error")))
         ui_queue.put(("model_error",))
 
@@ -2510,7 +2518,7 @@ def main():
         daemon=True
     ).start()
 
-    ui_queue.put(("log", f"Microphone: {current_mic_name()}", "dim"))
+    ui_queue.put(("log", karai18n.t("log_microphone", name=current_mic_name()), "dim"))
 
     # The website's screenshots need a window with something in it, and an empty
     # history photographs badly. KARA_DEMO_LOG fills it with a plausible session

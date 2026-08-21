@@ -15,7 +15,7 @@
 ; the version is written down in exactly one place. The fallback only matters
 ; when someone runs ISCC by hand.
 #ifndef AppVersion
-  #define AppVersion "0.3.0"
+  #define AppVersion "0.3.1"
 #endif
 
 ; Set by packaging/build.py --gpu. Only the file name changes: the AppId is
@@ -53,8 +53,12 @@ SolidCompression=yes
 VersionInfoVersion={#AppVersion}
 
 [Languages]
-Name: "english"; MessagesFile: "compiler:Default.isl"
-Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
+Name: "english";             MessagesFile: "compiler:Default.isl"
+Name: "spanish";              MessagesFile: "compiler:Languages\Spanish.isl"
+Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
+Name: "french";               MessagesFile: "compiler:Languages\French.isl"
+Name: "german";               MessagesFile: "compiler:Languages\German.isl"
+Name: "italian";              MessagesFile: "compiler:Languages\Italian.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
@@ -88,3 +92,35 @@ Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; \
 ; The app is a tray program: it can still be running when the uninstaller
 ; starts, and a leftover shortcut would point at nothing.
 Type: files; Name: "{userstartup}\{#AppName}.lnk"
+
+[Code]
+function KaraUILang(): String;
+begin
+  case ActiveLanguage of
+    'spanish': Result := 'es';
+    'brazilianportuguese': Result := 'pt';
+    'french': Result := 'fr';
+    'german': Result := 'de';
+    'italian': Result := 'it';
+  else
+    Result := 'en';
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  SettingsDir, SettingsFile: String;
+begin
+  if CurStep = ssPostInstall then begin
+    SettingsDir := ExpandConstant('{localappdata}\Kara');
+    SettingsFile := SettingsDir + '\settings.json';
+    // Only seed on a first install. An upgrade or repair must never overwrite
+    // a UI language the user already chose from inside the app -- that would
+    // silently undo Settings -> APP LANGUAGE every time a new version installs.
+    if not FileExists(SettingsFile) then begin
+      ForceDirectories(SettingsDir);
+      SaveStringToFile(SettingsFile,
+        '{"ui_language": "' + KaraUILang() + '"}', False);
+    end;
+  end;
+end;

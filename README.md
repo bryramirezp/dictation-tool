@@ -11,7 +11,7 @@ No account, no cloud, no subscription.
 
 <img src="docs/screenshot-main-dark.png" alt="The Kara window, listing sentences that have been dictated" width="300">
 
-[**Download for Windows**](https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-0.3.0.exe)
+[**Download for Windows**](https://github.com/bryramirezp/kara/releases/download/v0.3.1/Kara-Setup-0.3.1.exe)
  · [Website](https://bryramirezp.github.io/kara/)
  · [What's changed](CHANGELOG.md)
  · [All files](https://github.com/bryramirezp/kara/releases/latest)
@@ -46,13 +46,13 @@ that. It dictates text, and that part is free and works with no connection.
 
 ## Download
 
-**[Download the installer](https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-0.3.0.exe)**
-— <!--dl-size-->72 MB<!--/dl-size-->, for Windows 10 and 11. The link starts the download straight away.
+**[Download the installer](https://github.com/bryramirezp/kara/releases/download/v0.3.1/Kara-Setup-0.3.1.exe)**
+— <!--dl-size-->77 MB<!--/dl-size-->, for Windows 10 and 11. The link starts the download straight away.
 
 Have an NVIDIA graphics card? There is a second, much larger installer that
 carries the CUDA libraries with it:
-**[Download the GPU installer](https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-GPU-0.3.0.exe)**
-— <!--dl-size-gpu-->572 MB<!--/dl-size-gpu-->. Same app, same settings; it just
+**[Download the GPU installer](https://github.com/bryramirezp/kara/releases/download/v0.3.1/Kara-Setup-GPU-0.3.1.exe)**
+— <!--dl-size-gpu-->576 MB<!--/dl-size-gpu-->. Same app, same settings; it just
 also knows how to use the card. Take the ordinary one if you are not sure — it
 works everywhere, and you can install the other over the top of it later.
 
@@ -103,7 +103,7 @@ installer carries the CUDA libraries, which is why it is about eight times
 larger, and on an NVIDIA card it is not a small difference.
 
 If you have an NVIDIA card, take
-[the GPU installer](https://github.com/bryramirezp/kara/releases/download/v0.3.0/Kara-Setup-GPU-0.3.0.exe).
+[the GPU installer](https://github.com/bryramirezp/kara/releases/download/v0.3.1/Kara-Setup-GPU-0.3.1.exe).
 You need nothing else — no CUDA Toolkit, no separate download; whatever version
 of the Toolkit you may already have installed is not used. A current graphics
 driver is the only requirement.
